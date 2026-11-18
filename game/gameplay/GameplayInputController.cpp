@@ -177,7 +177,8 @@ GameplayMouseLookPolicyResult GameplayInputController::updateGameplayMouseLookPo
     GameplayScreenState::GameplayMouseLookState &state,
     const GameplayMouseLookPolicyConfig &config)
 {
-    const bool cursorModeActive = config.mouseLookAllowed && config.rightMousePressed;
+    const bool cursorModeActive =
+        config.mouseLookAllowed && (config.rightMousePressed || config.gamepadCursorModeActive);
     const bool mouseLookActive = config.mouseLookAllowed && !cursorModeActive;
 
     state.cursorModeActive = cursorModeActive;
@@ -868,13 +869,15 @@ GameplaySharedInputFrameResult GameplayInputController::updateSharedGameplayInpu
     const bool gameplayMouseLookAllowed = mouseLookPossible && !gameplayMouseLookState.freeCursorToggled;
 
     // Holding the right button is the cursor mode under mouse look; this frame lets it go.
-    const bool cursorModeReleased = gameplayMouseLookState.cursorModeActive && !config.rightButtonPressed;
+    const bool cursorModeRequested = config.rightButtonPressed || config.gamepadCursorModeActive;
+    const bool cursorModeReleased = gameplayMouseLookState.cursorModeActive && !cursorModeRequested;
     frameResult.mouseLookPolicy =
         updateGameplayMouseLookPolicy(
             gameplayMouseLookState,
             GameplayMouseLookPolicyConfig{
                 .mouseLookAllowed = gameplayMouseLookAllowed,
                 .rightMousePressed = config.rightButtonPressed,
+                .gamepadCursorModeActive = config.gamepadCursorModeActive,
             });
 
     const bool canToggleAdventurersInn =

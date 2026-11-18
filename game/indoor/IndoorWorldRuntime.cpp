@@ -16040,6 +16040,13 @@ bool IndoorWorldRuntime::actorRuntimeState(size_t actorIndex, GameplayRuntimeAct
     state.actionSeconds = pAiState != nullptr ? pAiState->actionSeconds : 0.0f;
     state.velocityX = pAiState != nullptr ? pAiState->velocityX : 0.0f;
     state.velocityY = pAiState != nullptr ? pAiState->velocityY : 0.0f;
+    state.velocityZ = pAiState != nullptr ? pAiState->velocityZ : 0.0f;
+    state.deathImpulseX = pAiState != nullptr ? pAiState->deathImpulseX : 0.0f;
+    state.deathImpulseY = pAiState != nullptr ? pAiState->deathImpulseY : 0.0f;
+    state.deathImpulseZ = pAiState != nullptr ? pAiState->deathImpulseZ : 0.0f;
+    state.deathImpactDamage = pAiState != nullptr ? pAiState->deathImpactDamage : 0;
+    state.deathImpactDamageType = pAiState != nullptr
+        ? pAiState->deathImpactDamageType : CombatDamageType::Physical;
     state.intendedSpeed = pAiState != nullptr ? pAiState->intendedSpeed : 0.0f;
     state.hurrying = pAiState != nullptr && (pAiState->motionState == ActorAiMotionState::Pursuing
         || pAiState->motionState == ActorAiMotionState::Fleeing);
@@ -16862,6 +16869,11 @@ bool IndoorWorldRuntime::applyReflectedDamageToActor(
         m_mapActorAiStates[actorIndex].velocityX = knockback.x;
         m_mapActorAiStates[actorIndex].velocityY = knockback.y;
         m_mapActorAiStates[actorIndex].velocityZ = knockback.z;
+        m_mapActorAiStates[actorIndex].deathImpulseX = knockback.x;
+        m_mapActorAiStates[actorIndex].deathImpulseY = knockback.y;
+        m_mapActorAiStates[actorIndex].deathImpulseZ = knockback.z;
+        m_mapActorAiStates[actorIndex].deathImpactDamage = appliedDamage;
+        m_mapActorAiStates[actorIndex].deathImpactDamageType = damageType;
 
         applyMonsterKillReputationPenalty(*this, pStats, actor.group);
 
@@ -20323,6 +20335,11 @@ bool IndoorWorldRuntime::applyPartyAttackMeleeDamage(
         m_mapActorAiStates[actorIndex].velocityX = knockback.x;
         m_mapActorAiStates[actorIndex].velocityY = knockback.y;
         m_mapActorAiStates[actorIndex].velocityZ = knockback.z;
+        m_mapActorAiStates[actorIndex].deathImpulseX = knockback.x;
+        m_mapActorAiStates[actorIndex].deathImpulseY = knockback.y;
+        m_mapActorAiStates[actorIndex].deathImpulseZ = knockback.z;
+        m_mapActorAiStates[actorIndex].deathImpactDamage = appliedDamage;
+        m_mapActorAiStates[actorIndex].deathImpactDamageType = damageType;
     }
 
     if (actorIndex < m_mapActorAiStates.size())
@@ -20568,10 +20585,16 @@ void IndoorWorldRuntime::applyPartyAttackMeleeEffects(
 {
     const MapDeltaData *pMapDeltaData = mapDeltaData();
 
-    if (pMapDeltaData == nullptr
-        || actorIndex >= pMapDeltaData->actors.size()
-        || actorIndex >= m_mapActorAiStates.size()
-        || (!attack.stunTarget
+    if (pMapDeltaData == nullptr || actorIndex >= pMapDeltaData->actors.size()
+        || actorIndex >= m_mapActorAiStates.size())
+    {
+        return;
+    }
+    // The damage call precedes effects and uses the interface's physical fallback; retain the actual weapon/enchant
+    // type for a killing blow even though a dead actor no longer receives status effects below.
+    m_mapActorAiStates[actorIndex].deathImpactDamageType = attack.damageType;
+
+    if ((!attack.stunTarget
             && !attack.paralyzeTarget
             && !attack.fearTarget
             && !attack.enrageTarget

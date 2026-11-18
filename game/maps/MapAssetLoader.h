@@ -224,6 +224,12 @@ struct MapCompanionLoadOptions
     // Whether face textures load their surface material maps (video.surface_materials); off, nothing of them is read
     // or kept.
     bool surfaceMaterials = false;
+    // Resolve enhanced environment atlas bindings to native MM6-MM8 sprite names and keep decoration billboards in
+    // place of model replacements.
+    bool classicEnvironmentGraphics = false;
+    // Resolve enhanced creature atlas bindings to native MM6-MM8 sprite names. Actor model loading is controlled by
+    // GameDataLoader so this option can be selected independently from the environment presentation.
+    bool classicActorGraphics = false;
 };
 
 struct MapAssetBitmapPixelsResult

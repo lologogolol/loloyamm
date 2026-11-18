@@ -95,6 +95,12 @@ public:
     // Actor models (settings `actor_models`): the merged models/actors.yml of every mounted world, or only
     // overrideManifestPath when it is set. Map loads then skip the sprites of the monsters they bind.
     void setActorModels(bool enabled, const std::string &overrideManifestPath);
+    // Whether map loads use native environment and/or actor sprite bindings instead of enhanced replacements.
+    void setClassicGraphics(bool environments, bool actors)
+    {
+        m_classicEnvironmentGraphics = environments;
+        m_classicActorGraphics = actors;
+    }
     // Whether map loads read the surface material maps of face textures (video.surface_materials).
     void setSurfaceMaterials(bool enabled) { m_surfaceMaterials = enabled; }
     // Loads the actor model manifest (every mounted world's actors.yml) when actor models are on; a map load does it.
@@ -310,6 +316,8 @@ private:
     std::vector<NamedModManifest> m_namedMods;
     mutable std::set<std::string> m_appliedRulesetContributions;
     bool m_actorModelsEnabled = false;
+    bool m_classicEnvironmentGraphics = false;
+    bool m_classicActorGraphics = false;
     bool m_surfaceMaterials = false;
     std::string m_actorModelManifestOverride;
     std::shared_ptr<const ActorModelManifest> m_pActorModelManifest;

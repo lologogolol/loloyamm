@@ -149,6 +149,7 @@ add_executable(openyamm_unit_tests
     MapDecorationTexturesTests.cpp
     MapPresentationTests.cpp
     ModelAnimationTests.cpp
+    ActorRagdollTests.cpp
     ModelSunShadowTests.cpp
     ModelEnvironmentTests.cpp
     LightGridTests.cpp
@@ -236,6 +237,7 @@ add_executable(openyamm_unit_tests
     ../engine/models/ModelAnimation.cpp
     ../engine/models/ModelAsset.cpp
     ../engine/models/ModelInstance.cpp
+    ../game/fx/ActorRagdoll.cpp
     ../engine/SpriteAtlas.cpp
     ../game/render/SpriteAtlasMipmaps.cpp
     ../game/render/SpriteAtlasCook.cpp
@@ -526,6 +528,10 @@ target_include_directories(openyamm_unit_tests
     PRIVATE
         "${CMAKE_BINARY_DIR}/_deps/ffmpeg-install/include"
         "${CMAKE_BINARY_DIR}/generated"
+        # Native Windows installs can omit libavutil's public headers. Match the production target's fallback to the
+        # source headers and configure-generated avconfig.h used to build the static libraries.
+        "${CMAKE_BINARY_DIR}/_deps/ffmpeg-build"
+        "${CMAKE_BINARY_DIR}/_deps/ffmpeg-src"
 )
 if (OPENYAMM_STATS_PRIVATE_KEY_SOURCE)
     target_sources(openyamm_unit_tests PRIVATE "${OPENYAMM_STATS_PRIVATE_KEY_SOURCE}")
@@ -541,6 +547,12 @@ target_link_libraries(openyamm_unit_tests
 )
 
 add_dependencies(openyamm_unit_tests openyamm_ffmpeg_build)
+
+if (WIN32)
+    # The unit target compiles the updater and links FFmpeg directly instead of inheriting the production targets'
+    # private Windows libraries.
+    target_link_libraries(openyamm_unit_tests PRIVATE winhttp bcrypt)
+endif()
 
 if (UNIX AND NOT APPLE)
     target_link_options(openyamm_unit_tests

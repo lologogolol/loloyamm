@@ -196,12 +196,36 @@ struct GameSettings
         }
     };
 
+    struct GamepadSettings
+    {
+        std::array<GamepadBinding, KeyboardActionCount> bindings = createDefaultGamepadBindings();
+
+        GamepadBinding binding(KeyboardAction action) const
+        {
+            return bindings[keyboardActionIndex(action)];
+        }
+
+        void setBinding(KeyboardAction action, GamepadBinding binding)
+        {
+            bindings[keyboardActionIndex(action)] = binding;
+        }
+
+        void restoreDefaults()
+        {
+            bindings = createDefaultGamepadBindings();
+        }
+    };
+
     std::string settingsProfileName;
     uint32_t settingsProfileVersion = 0;
 
     int soundVolume = 3;
     int musicVolume = 2;
     int voiceVolume = 3;
+    // Use the numbered MP3 tracks installed with the purchased MM6-MM8 game selected for the active world.
+    // The external folder is mounted at startup, so changing either value needs a restart.
+    bool classicMusic = false;
+    std::string classicMusicFolder;
 
     TurnRateMode turnRate = TurnRateMode::Smooth;
     bool walksound = true;
@@ -219,6 +243,12 @@ struct GameSettings
     // The left button's Attack or Use (by the control preset) uses what is under the cursor when it can be used, and
     // attacks otherwise.
     bool smartClick = false;
+    // One gameplay left-click latches the logical button down; the next releases it. Menus always cancel the latch.
+    bool autoHoldLeftClick = false;
+    // Enemy 3D models switch from their authored death clip to the native articulated physics simulation.
+    bool ragdollPhysics = false;
+    // Keep slain bodies after they settle. Their loot satchels remain separate, anchored world objects.
+    bool corpsesStay = false;
     ControlScheme controlScheme = ControlScheme::Modern;
     bool bloodSplats = true;
     bool coloredLights = true;
@@ -284,6 +314,16 @@ struct GameSettings
     float outdoorBillboardDepthSlice = 256.0f;
     bool skipEventCutscenes = false;
     bool waitForLevelSprites = true;
+    // Use the purchased MM6-MM8 environment presentation: x1 world textures and native decoration/object sprites.
+    // Interface assets and actor presentation are independent. Asset tiers are selected at startup, so this needs a
+    // restart.
+    bool classicEnvironmentGraphics = false;
+    // Use native MM6-MM8 creature sprites instead of OpenYAMM actor models. This intentionally disables model-only
+    // features such as rigid death physics, independently of the environment presentation.
+    bool classicActorGraphics = false;
+    // Folder containing "Might and Magic 6", "Might and Magic 7" and "Might and Magic 8". The native-visuals
+    // cache reads each purchased game's BITMAPS.LOD and SPRITES.LOD from here at startup.
+    std::string purchasedGamesFolder;
     Engine::AssetScaleProfile assetScaleProfile = Engine::createUniformAssetScaleProfile(Engine::AssetScaleTier::X1);
     WindowMode windowMode = WindowMode::Windowed;
     int resolutionWidth = 1600;
@@ -323,6 +363,7 @@ struct GameSettings
     std::string combatTraceFile = "logs/combat_trace.log";
     float hitchThresholdMilliseconds = 40.0f;
     KeyboardSettings keyboard = {};
+    GamepadSettings gamepad = {};
     bool preseedParty = false;
     uint32_t partySeedRosterId = 0;
     std::string assetRoot;

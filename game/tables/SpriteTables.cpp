@@ -1,4 +1,5 @@
 #include "game/tables/SpriteTables.h"
+#include "engine/SpriteAtlas.h"
 #include "game/BinaryReader.h"
 #include "game/StringUtils.h"
 
@@ -11,12 +12,52 @@
 #include <cstdlib>
 #include <exception>
 #include <limits>
+#include <string_view>
 
 namespace OpenYAMM::Game
 {
 namespace
 {
 constexpr size_t SpriteFrameRecordSize = 60;
+
+std::string originalSpriteTextureName(const SpriteFrameEntry &entry)
+{
+    const std::optional<Engine::SpriteAtlasReference> reference =
+        Engine::parseSpriteAtlasReference(entry.textureName);
+
+    if (!reference)
+    {
+        return entry.textureName;
+    }
+
+    std::string textureName = reference->frame;
+    const size_t variantSeparator = textureName.find("__");
+
+    if (variantSeparator == std::string::npos)
+    {
+        return textureName;
+    }
+
+    const std::string variant = textureName.substr(variantSeparator + 2);
+    textureName.resize(variantSeparator);
+
+    // A directional palette variant appends its view in resolveTexture. An Image1 palette variant already carries
+    // the view after its palette id (for example __palette_8300 is palette 830, view 0).
+    constexpr std::string_view PalettePrefix = "palette_";
+    if ((entry.flags & static_cast<uint32_t>(SpriteFrameFlag::Image1)) != 0
+        && variant.starts_with(PalettePrefix))
+    {
+        const std::string paletteAndView = variant.substr(PalettePrefix.size());
+        const std::string palette = std::to_string(entry.paletteId);
+        if (paletteAndView.starts_with(palette) && paletteAndView.size() == palette.size() + 1
+            && std::isdigit(static_cast<unsigned char>(paletteAndView.back())))
+        {
+            textureName.push_back(paletteAndView.back());
+        }
+    }
+
+    return textureName;
+}
 
 bool isNumericString(const std::string &value)
 {
@@ -774,6 +815,11 @@ bool SpriteFrameTable::loadFromYaml(const std::string &yamlText, std::string &er
                 return false;
             }
 
+            if (m_useOriginalTextureNames)
+            {
+                entry.textureName = originalSpriteTextureName(entry);
+            }
+
             if (frameOffset == 0)
             {
                 entry.flags |= static_cast<uint32_t>(SpriteFrameFlag::First);
@@ -819,6 +865,19 @@ bool SpriteFrameTable::loadFromYaml(const std::string &yamlText, std::string &er
 
     rebuildSpriteNameIndex();
     return !m_frames.empty();
+}
+
+void SpriteFrameTable::useOriginalTextureNames()
+{
+    m_useOriginalTextureNames = true;
+
+    for (size_t frameIndex = 0; frameIndex < m_frames.size(); ++frameIndex)
+    {
+        if (frameIndex < m_framePresent.size() && m_framePresent[frameIndex])
+        {
+            m_frames[frameIndex].textureName = originalSpriteTextureName(m_frames[frameIndex]);
+        }
+    }
 }
 
 const SpriteFrameEntry *SpriteFrameTable::getFrame(uint16_t spriteId, uint32_t timeTicks) const

@@ -32,6 +32,73 @@ TEST_CASE("creature shadow quality and LOD settings validate and persist")
     std::filesystem::remove(path);
 }
 
+TEST_CASE("classic environment and actor graphics validate and persist independently")
+{
+    GameSettings settings = GameSettings::createDefault();
+    const std::filesystem::path path =
+        std::filesystem::temp_directory_path() / "openyamm-classic-graphics-settings.ini";
+    std::string error;
+    CHECK_EQ(menuSettingValue(settings, "classic_environment_graphics"), "false");
+    CHECK_EQ(menuSettingValue(settings, "classic_actor_graphics"), "false");
+    CHECK(menuSettingValue(settings, "purchased_games_folder").empty());
+    CHECK_FALSE(setMenuSettingValue(settings, "classic_environment_graphics", "yes"));
+    REQUIRE(setMenuSettingValue(settings, "classic_environment_graphics", "true"));
+    REQUIRE(setMenuSettingValue(settings, "classic_actor_graphics", "false"));
+    REQUIRE(setMenuSettingValue(settings, "purchased_games_folder", R"(E:\Games)"));
+    CHECK_FALSE(setMenuSettingValue(settings, "purchased_games_folder", ""));
+    REQUIRE(saveGameSettings(path, settings, error));
+    const std::optional<GameSettings> loaded = loadGameSettings(path, error);
+    REQUIRE_MESSAGE(loaded, error);
+    CHECK(loaded->classicEnvironmentGraphics);
+    CHECK_FALSE(loaded->classicActorGraphics);
+    CHECK_EQ(settings.purchasedGamesFolder, R"(E:\Games)");
+    CHECK_EQ(menuSettingValue(*loaded, "classic_environment_graphics"), "true");
+    CHECK_EQ(menuSettingValue(*loaded, "classic_actor_graphics"), "false");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("classic music and its purchased-games folder validate and persist")
+{
+    GameSettings settings = GameSettings::createDefault();
+    const std::filesystem::path path =
+        std::filesystem::temp_directory_path() / "openyamm-classic-music-settings.ini";
+    std::string error;
+    CHECK_EQ(menuSettingValue(settings, "classic_music"), "false");
+    CHECK(menuSettingValue(settings, "classic_music_folder").empty());
+    CHECK_FALSE(setMenuSettingValue(settings, "classic_music", "yes"));
+    REQUIRE(setMenuSettingValue(settings, "classic_music", "true"));
+    REQUIRE(setMenuSettingValue(settings, "classic_music_folder", R"(E:\Games)"));
+    CHECK_FALSE(setMenuSettingValue(settings, "classic_music_folder", ""));
+    REQUIRE(saveGameSettings(path, settings, error));
+    const std::optional<GameSettings> loaded = loadGameSettings(path, error);
+    REQUIRE_MESSAGE(loaded, error);
+    CHECK(loaded->classicMusic);
+    CHECK_EQ(loaded->classicMusicFolder, R"(E:\Games)");
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("auto-hold left click setting validates and persists")
+{
+    GameSettings settings = GameSettings::createDefault();
+    CHECK_EQ(menuSettingValue(settings, "auto_hold_left_click"), "false");
+    CHECK_FALSE(setMenuSettingValue(settings, "auto_hold_left_click", "yes"));
+    REQUIRE(setMenuSettingValue(settings, "auto_hold_left_click", "true"));
+    CHECK(settings.autoHoldLeftClick);
+    CHECK_EQ(menuSettingValue(settings, "auto_hold_left_click"), "true");
+}
+
+TEST_CASE("ragdoll and corpse persistence settings validate")
+{
+    GameSettings settings = GameSettings::createDefault();
+    CHECK_EQ(menuSettingValue(settings, "ragdoll_physics"), "false");
+    CHECK_EQ(menuSettingValue(settings, "corpses_stay"), "false");
+    CHECK_FALSE(setMenuSettingValue(settings, "ragdoll_physics", "yes"));
+    REQUIRE(setMenuSettingValue(settings, "ragdoll_physics", "true"));
+    REQUIRE(setMenuSettingValue(settings, "corpses_stay", "true"));
+    CHECK(settings.ragdollPhysics);
+    CHECK(settings.corpsesStay);
+}
+
 TEST_CASE("MAW number keys select a member by default and the bag choice persists")
 {
     GameSettings settings = GameSettings::createDefault();
@@ -95,6 +162,37 @@ TEST_CASE("menu binding reservation and equality follow native single input bind
     CHECK(sameMenuBinding(mouseButtonInputBinding(SDL_BUTTON_LEFT), mouseButtonInputBinding(SDL_BUTTON_LEFT)));
     CHECK_FALSE(sameMenuBinding(mouseButtonInputBinding(SDL_BUTTON_LEFT), keyboardInputBinding(SDL_SCANCODE_A)));
     CHECK_FALSE(sameMenuBinding(mouseButtonInputBinding(SDL_BUTTON_LEFT), mouseButtonInputBinding(SDL_BUTTON_RIGHT)));
+}
+
+TEST_CASE("gamepad bindings use XInput names and survive settings save and load")
+{
+    const GamepadBinding rightStick = gamepadButtonInputBinding(SDL_GAMEPAD_BUTTON_RIGHT_STICK);
+    const GamepadBinding leftTrigger = gamepadTriggerInputBinding(SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+    CHECK(sameMenuGamepadBinding(rightStick, parseGamepadBindingName("R3")));
+    CHECK(sameMenuGamepadBinding(rightStick, parseGamepadBindingName("Right Stick")));
+    CHECK(sameMenuGamepadBinding(leftTrigger, parseGamepadBindingName("LT")));
+    CHECK(gamepadBindingName(rightStick) == "RightStick");
+    CHECK(gamepadBindingDisplayName(rightStick) == "R3");
+    CHECK(gamepadBindingName(leftTrigger) == "LeftTrigger");
+    CHECK(gamepadBindingDisplayName(leftTrigger) == "LT");
+    CHECK(parseGamepadBindingName("not-a-button").kind == GamepadBindingKind::None);
+
+    GameSettings settings = GameSettings::createDefault();
+    CHECK(sameMenuGamepadBinding(
+        settings.gamepad.binding(KeyboardAction::ToggleCursorMode), rightStick));
+    const GamepadBinding remapped = gamepadButtonInputBinding(SDL_GAMEPAD_BUTTON_GUIDE);
+    settings.gamepad.setBinding(KeyboardAction::ToggleCursorMode, remapped);
+    settings.gamepad.setBinding(KeyboardAction::Attack, GamepadBinding{});
+    const std::filesystem::path path =
+        std::filesystem::temp_directory_path() / "openyamm-gamepad-settings.ini";
+    std::string error;
+    REQUIRE(saveGameSettings(path, settings, error));
+    const std::optional<GameSettings> loaded = loadGameSettings(path, error);
+    REQUIRE_MESSAGE(loaded, error);
+    CHECK(sameMenuGamepadBinding(
+        loaded->gamepad.binding(KeyboardAction::ToggleCursorMode), remapped));
+    CHECK(loaded->gamepad.binding(KeyboardAction::Attack).kind == GamepadBindingKind::None);
+    std::filesystem::remove(path);
 }
 
 TEST_CASE("mouse wheel bindings distinguish directions and survive settings save and load")

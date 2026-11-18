@@ -8,6 +8,8 @@
 
 #include <filesystem>
 #include <functional>
+#include <memory>
+#include <mutex>
 
 namespace OpenYAMM::Game
 {
@@ -46,6 +48,7 @@ class MainMenuScreen : public MenuDesignScreen
     void prepareForFirstFrame();
     void onExit() override;
     void handleSdlEvent(const SDL_Event &event) override;
+    bool capturesGamepadInput() const override;
 
   private:
     struct Setting
@@ -60,10 +63,23 @@ class MainMenuScreen : public MenuDesignScreen
         std::string id, name, group;
         // Where the key acts (catalog `context`, empty for play); keys of different contexts may be the same.
         std::string context;
+        bool keyboard = true;
+        bool gamepad = true;
+    };
+    enum class BindingDevice
+    {
+        Keyboard,
+        Gamepad
     };
     struct Section
     {
         std::string id, name;
+    };
+    struct FolderPick
+    {
+        std::mutex mutex;
+        std::optional<std::filesystem::path> folder;
+        bool finished = false;
     };
     enum class Page
     {
@@ -85,6 +101,8 @@ class MainMenuScreen : public MenuDesignScreen
     void loadCatalog();
     void editSetting(const Setting &setting, const std::string &value);
     void chooseSetting(const Setting &setting);
+    void requestSettingFolder(const Setting &setting);
+    void finishSettingFolderPick();
     size_t dirtyCount() const;
     // A row's value in the draft or as applied; the Rules tab's rows read the game's ruleset options.
     std::string settingValue(const Setting &setting, bool applied = false) const;
@@ -92,8 +110,9 @@ class MainMenuScreen : public MenuDesignScreen
     void leaveSettings();
     void applySettings(bool leaveAfter = false);
     void restoreDefaults();
-    void captureBinding(KeyboardAction action);
+    void captureBinding(KeyboardAction action, BindingDevice device);
     void acceptBinding(InputBinding binding);
+    void acceptGamepadBinding(GamepadBinding binding);
     void revertDisplay();
     // The main menu's update notice, question and progress (packaging/UPDATER_PLAN.md 10).
     void drawUpdates();
@@ -115,6 +134,7 @@ class MainMenuScreen : public MenuDesignScreen
     std::string m_latestSaveMap;
     std::string m_latestSaveLocation;
     std::optional<KeyboardAction> m_capture;
+    BindingDevice m_captureDevice = BindingDevice::Keyboard;
     // A modifier pressed while capturing: bound when released alone, passed over when a key follows (a mouse's side
     // button that sends a combination such as Ctrl+F9 binds F9).
     std::optional<SDL_Scancode> m_captureModifier;
@@ -136,6 +156,8 @@ class MainMenuScreen : public MenuDesignScreen
     float m_scroll = 0;
     // The settings slider the left button grabbed; it follows the pointer until release (sliderDragPosition).
     std::string m_draggedSlider;
+    std::shared_ptr<FolderPick> m_folderPick;
+    std::string m_folderPickSettingId;
     GameUpdater *m_pUpdater = nullptr;
     bool m_updatesStarted = false;
     bool m_followingUpdate = false;

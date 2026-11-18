@@ -461,6 +461,7 @@ GameSettings GameSettings::createDefault()
 #endif
     settings.settingsProfileVersion = CurrentSettingsProfileVersion;
     settings.keyboard.restoreDefaults(settings.controlScheme);
+    settings.gamepad.restoreDefaults();
     settings.assetScaleProfile.decorations = Engine::AssetScaleTier::X2;
     settings.assetScaleProfile.preferRestoredIcons = true;
     // These are the only defaults: release packages ship no settings file, and a player's settings.ini holds only
@@ -962,6 +963,20 @@ std::optional<GameSettings> parseGameSettingsDocument(const IniDocument &documen
         }
     }
 
+    if (const std::optional<std::string> value = getIniValue(document, "audio", "classic_music"))
+    {
+        parseBoolValue(*value, settings.classicMusic);
+    }
+
+    if (const std::optional<std::string> value = getIniValue(document, "audio", "classic_music_folder"))
+    {
+        const std::string parsed = trimCopy(*value);
+        if (!parsed.empty())
+        {
+            settings.classicMusicFolder = parsed;
+        }
+    }
+
     if (const std::optional<std::string> value = getIniValue(document, "audio", "repeated_voice_line_interval_ms"))
     {
         int parsed = settings.repeatedVoiceLineIntervalMs;
@@ -1071,6 +1086,11 @@ std::optional<GameSettings> parseGameSettingsDocument(const IniDocument &documen
         {
             settings.smartClick = parsed;
         }
+    }
+
+    if (const std::optional<std::string> value = getIniValue(document, "controls", "auto_hold_left_click"))
+    {
+        parseBoolValue(*value, settings.autoHoldLeftClick);
     }
 
     if (const std::optional<std::string> value = getIniValue(document, "gameplay", "keyboard_interaction_depth"))
@@ -1392,6 +1412,44 @@ std::optional<GameSettings> parseGameSettingsDocument(const IniDocument &documen
         }
     }
 
+    if (const std::optional<std::string> value = getIniValue(document, "gameplay", "ragdoll_physics"))
+    {
+        parseBoolValue(*value, settings.ragdollPhysics);
+    }
+
+    if (const std::optional<std::string> value = getIniValue(document, "gameplay", "corpses_stay"))
+    {
+        parseBoolValue(*value, settings.corpsesStay);
+    }
+
+    // Releases that exposed one combined switch load it as both choices. Explicit split keys, when present, take
+    // precedence so a settings file can opt into only one half.
+    if (const std::optional<std::string> value = getIniValue(document, "video", "original_world_visuals"))
+    {
+        bool parsed = false;
+        if (parseBoolValue(*value, parsed))
+        {
+            settings.classicEnvironmentGraphics = parsed;
+            settings.classicActorGraphics = parsed;
+        }
+    }
+    if (const std::optional<std::string> value = getIniValue(document, "video", "classic_environment_graphics"))
+    {
+        parseBoolValue(*value, settings.classicEnvironmentGraphics);
+    }
+    if (const std::optional<std::string> value = getIniValue(document, "video", "classic_actor_graphics"))
+    {
+        parseBoolValue(*value, settings.classicActorGraphics);
+    }
+
+    if (const std::optional<std::string> value = getIniValue(document, "video", "purchased_games_folder"))
+    {
+        const std::string parsed = trimCopy(*value);
+        if (!parsed.empty())
+        {
+            settings.purchasedGamesFolder = parsed;
+        }
+    }
     if (const std::optional<std::string> value = getIniValue(document, "video", "blood_splats"))
     {
         bool parsed = settings.bloodSplats;
@@ -1975,6 +2033,21 @@ std::optional<GameSettings> parseGameSettingsDocument(const IniDocument &documen
         if (binding.kind != InputBindingKind::None || name == inputBindingName(InputBinding{}))
         {
             settings.keyboard.setBinding(definition.action, binding);
+        }
+    }
+
+    for (const KeyboardBindingDefinition &definition : keyboardBindingDefinitions())
+    {
+        const std::optional<std::string> value =
+            getIniValue(document, "gamepad", std::string(definition.iniKey));
+        if (!value.has_value())
+        {
+            continue;
+        }
+        const GamepadBinding binding = parseGamepadBindingName(trimCopy(*value));
+        if (binding.kind != GamepadBindingKind::None || toLowerCopy(trimCopy(*value)) == "unbound")
+        {
+            settings.gamepad.setBinding(definition.action, binding);
         }
     }
 
@@ -2612,6 +2685,8 @@ std::vector<SettingsEntry> serializeGameSettings(const GameSettings &settings)
     serializer.add("sound_volume", std::clamp(settings.soundVolume, 0, 9));
     serializer.add("music_volume", std::clamp(settings.musicVolume, 0, 9));
     serializer.add("voice_volume", std::clamp(settings.voiceVolume, 0, 9));
+    serializer.add("classic_music", boolValue(settings.classicMusic));
+    serializer.add("classic_music_folder", settings.classicMusicFolder);
     serializer.add(
         "repeated_voice_line_interval_ms",
         repeatedVoiceLineIntervalValue(settings.repeatedVoiceLineIntervalMs));
@@ -2626,6 +2701,7 @@ std::vector<SettingsEntry> serializeGameSettings(const GameSettings &settings)
     serializer.add("mouse_sensitivity", std::clamp(settings.mouseSensitivity, 0, 100));
     serializer.add("invert_mouse_y", boolValue(settings.invertMouseY));
     serializer.add("smart_click", boolValue(settings.smartClick));
+    serializer.add("auto_hold_left_click", boolValue(settings.autoHoldLeftClick));
     serializer.section("gameplay");
     serializer.add("keyboard_interaction_depth", std::clamp(settings.keyboardInteractionDepth, 32, 4096));
     serializer.add("mouse_interaction_depth", std::clamp(settings.mouseInteractionDepth, 32, 4096));
@@ -2659,6 +2735,8 @@ std::vector<SettingsEntry> serializeGameSettings(const GameSettings &settings)
     serializer.add("formations_everywhere", boolValue(settings.formationsEverywhere));
     serializer.add("shop_list_view", boolValue(settings.shopListView));
     serializer.add("loot_sparkle", boolValue(settings.lootSparkle));
+    serializer.add("ragdoll_physics", boolValue(settings.ragdollPhysics));
+    serializer.add("corpses_stay", boolValue(settings.corpsesStay));
     serializer.add("context_action_popup", boolValue(settings.contextActionPopup));
     serializer.add("rarity_glow", settings.rarityGlow);
     serializer.add("craft_preview", settings.craftPreview);
@@ -2695,7 +2773,16 @@ std::vector<SettingsEntry> serializeGameSettings(const GameSettings &settings)
         serializer.add(definition.iniKey, inputBindingName(settings.keyboard.binding(definition.action)));
     }
 
+    serializer.section("gamepad");
+    for (const KeyboardBindingDefinition &definition : keyboardBindingDefinitions())
+    {
+        serializer.add(definition.iniKey, gamepadBindingName(settings.gamepad.binding(definition.action)));
+    }
+
     serializer.section("video");
+    serializer.add("classic_environment_graphics", boolValue(settings.classicEnvironmentGraphics));
+    serializer.add("classic_actor_graphics", boolValue(settings.classicActorGraphics));
+    serializer.add("purchased_games_folder", settings.purchasedGamesFolder);
     serializer.add("blood_splats", boolValue(settings.bloodSplats));
     serializer.add("colored_lights", boolValue(settings.coloredLights));
     serializer.add("warm_torch_light", boolValue(settings.warmTorchLight));

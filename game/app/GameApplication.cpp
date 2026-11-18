@@ -10,6 +10,7 @@
 #include "game/StringUtils.h"
 #include "game/app/ProfilingControl.h"
 #include "game/debug/ExitPose.h"
+#include "game/content/CommercialVisualAssets.h"
 #include "game/debug/GameplayDebugTrace.h"
 #include "game/debug/MawTestParties.h"
 #include "game/debug/PinInbox.h"
@@ -9197,6 +9198,44 @@ void GameApplication::handleSdlEvent(const SDL_Event &event)
 
     if (pActiveScreen != nullptr)
     {
+        if (pActiveScreen->capturesGamepadInput()
+            && (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN
+                || event.type == SDL_EVENT_GAMEPAD_BUTTON_UP
+                || event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION))
+        {
+            pActiveScreen->handleSdlEvent(event);
+            return;
+        }
+        if (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || event.type == SDL_EVENT_GAMEPAD_BUTTON_UP)
+        {
+            SDL_Event keyEvent = {};
+            bool mappedGamepadButton = false;
+            keyEvent.type = event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+            const GamepadBinding acceptBinding = m_settings.gamepad.binding(KeyboardAction::MenuAccept);
+            const GamepadBinding backBinding = m_settings.gamepad.binding(KeyboardAction::MenuBack);
+            if (acceptBinding.kind == GamepadBindingKind::Button
+                && acceptBinding.button == event.gbutton.button
+                && pActiveScreen->textInputActive())
+            {
+                // General activation is delivered through GameplayInputFrame; text fields also need a direct key
+                // event to commit editing.
+                keyEvent.key.scancode = SDL_SCANCODE_RETURN;
+                keyEvent.key.key = SDLK_RETURN;
+                mappedGamepadButton = true;
+            }
+            else if (backBinding.kind == GamepadBindingKind::Button
+                && backBinding.button == event.gbutton.button)
+            {
+                keyEvent.key.scancode = SDL_SCANCODE_ESCAPE;
+                keyEvent.key.key = SDLK_ESCAPE;
+                mappedGamepadButton = true;
+            }
+            if (mappedGamepadButton)
+            {
+                pActiveScreen->handleSdlEvent(keyEvent);
+                return;
+            }
+        }
         pActiveScreen->handleSdlEvent(event);
     }
 }
@@ -9866,7 +9905,19 @@ bool GameApplication::syncActorModels(IGameplayWorldRuntime &world, float deltaS
 
 void GameApplication::applyCurrentSettingsToActiveRuntime()
 {
-    m_gameDataLoader.setActorModels(m_settings.actorModels, m_settings.actorModelsManifest);
+    const bool commercialVisualsAvailable = !m_config.installedContent.originalVisualsRoot.empty();
+    const bool classicEnvironmentGraphics =
+        m_settings.classicEnvironmentGraphics
+        && m_config.installedContent.classicEnvironmentGraphics
+        && commercialVisualsAvailable;
+    const bool classicActorGraphics =
+        m_settings.classicActorGraphics
+        && m_config.installedContent.classicActorGraphics
+        && commercialVisualsAvailable;
+    m_gameDataLoader.setActorModels(
+        m_settings.actorModels && !classicActorGraphics,
+        m_settings.actorModelsManifest);
+    m_gameDataLoader.setClassicGraphics(classicEnvironmentGraphics, classicActorGraphics);
     m_gameDataLoader.setSurfaceMaterials(m_settings.surfaceMaterials);
     m_gameSession.gameplayUiRuntime().bindSpriteAtlasCache(m_spriteAtlasCache);
     m_gameSession.gameplayUiRuntime().bindActorModelPreview(m_actorModelPreview);
@@ -9884,6 +9935,10 @@ void GameApplication::applyCurrentSettingsToActiveRuntime()
     m_outdoorGameView.setFlipOnExitEnabled(m_settings.flipOnExit);
     m_outdoorGameView.setSettingsSnapshot(m_settings);
     m_indoorGameView.setSettingsSnapshot(m_settings);
+    m_outdoorGameView.worldFxSystem().setRagdollPhysics(m_settings.ragdollPhysics);
+    m_outdoorGameView.worldFxSystem().setCorpsesStay(m_settings.corpsesStay);
+    m_indoorRenderer.worldFxSystem().setRagdollPhysics(m_settings.ragdollPhysics);
+    m_indoorRenderer.worldFxSystem().setCorpsesStay(m_settings.corpsesStay);
 
     if (m_pOutdoorWorldRuntime != nullptr)
     {
@@ -13227,6 +13282,22 @@ void GameApplication::resumeMenuGameplay()
 bool GameApplication::applyMenuSettings(const GameSettings &settings, bool persist, std::string &error)
 {
     const GameSettings previous = m_settings;
+    const bool classicGraphicsEnabled =
+        settings.classicEnvironmentGraphics || settings.classicActorGraphics;
+    const bool classicGraphicsWasEnabled =
+        previous.classicEnvironmentGraphics || previous.classicActorGraphics;
+    if (classicGraphicsEnabled
+        && (!classicGraphicsWasEnabled || previous.purchasedGamesFolder != settings.purchasedGamesFolder)
+        && !validateCommercialVisualAssetsRoot(settings.purchasedGamesFolder, error))
+    {
+        return false;
+    }
+    if (settings.classicMusic
+        && (!previous.classicMusic || previous.classicMusicFolder != settings.classicMusicFolder)
+        && !validateCommercialMusicRoot(settings.classicMusicFolder, error))
+    {
+        return false;
+    }
     const bool displayChanged =
         previous.windowMode != settings.windowMode || previous.resolutionWidth != settings.resolutionWidth ||
         previous.resolutionHeight != settings.resolutionHeight || previous.verticalSync != settings.verticalSync;
@@ -14233,6 +14304,13 @@ void GameApplication::renderFrame(int width, int height, float mouseWheelDelta, 
     const bool mobileLongPressInspectEnabled =
         mobileInspectControlEnabled
         && m_gameSession.gameplayScreenRuntime().currentHudScreenState() != GameplayHudScreenState::Gameplay;
+    const bool controllerMenuNavigationEnabled =
+        pActiveScreenForInput != nullptr
+        || pendingSpellTargetForInput.active
+        || m_gameSession.gameplayScreenRuntime().currentHudScreenState() != GameplayHudScreenState::Gameplay
+        || m_gameSession.gameplayScreenRuntime().utilitySpellOverlayReadOnly().mode
+            != GameplayUiController::UtilitySpellOverlayMode::None
+        || m_gameSession.gameplayScreenRuntime().activeEventDialog().isActive;
 
     std::vector<GameplayTouchControl> touchControls;
 #if defined(__ANDROID__) || defined(OPENYAMM_IOS)
@@ -14252,7 +14330,9 @@ void GameApplication::renderFrame(int width, int height, float mouseWheelDelta, 
         mobileFlightControlsEnabled,
         mobileInspectControlEnabled,
         mobileLongPressInspectEnabled,
-        touchControls);
+        touchControls,
+        controllerMenuNavigationEnabled,
+        realDeltaSeconds);
     m_menuInputTourClockNanoseconds += uint64_t(double(realDeltaSeconds) * 1.0e9);
     m_menuInputTour.update(m_settings.menuInputTourPath, m_menuInputTourClockNanoseconds, m_gameInputSystem.frame(),
                            m_screenManager.activeScreen(), m_screenshotCaptureService, m_settings.keyboard.bindings,

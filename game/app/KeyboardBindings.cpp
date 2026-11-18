@@ -209,6 +209,14 @@ const std::array<KeyboardBindingDefinition, KeyboardActionCount> KeyboardBinding
         KeyboardBindingColumn::Left, 0, {InputBindingKind::Keyboard, SDL_SCANCODE_9, 0}, true},
     {KeyboardAction::ActionBar10, "action_bar_10", Engine::trNoop("Action Bar 10"), KeyboardBindingPage::Hidden,
         KeyboardBindingColumn::Left, 0, {InputBindingKind::Keyboard, SDL_SCANCODE_0, 0}, true},
+    {KeyboardAction::ToggleCursorMode, "toggle_cursor_mode", Engine::trNoop("Look / Interact Mode"), KeyboardBindingPage::Hidden,
+        KeyboardBindingColumn::Left, 0, {}, true},
+    {KeyboardAction::MenuAccept, "menu_accept", Engine::trNoop("Menu Accept / Cursor Click"), KeyboardBindingPage::Hidden,
+        KeyboardBindingColumn::Left, 0, {}, true},
+    {KeyboardAction::MenuBack, "menu_back", Engine::trNoop("Menu Back"), KeyboardBindingPage::Hidden,
+        KeyboardBindingColumn::Left, 0, {}, true},
+    {KeyboardAction::MenuSecondary, "menu_secondary", Engine::trNoop("Menu Secondary / Inspect"), KeyboardBindingPage::Hidden,
+        KeyboardBindingColumn::Left, 0, {}, true},
 }};
 
 const std::array<KeyboardScancodeName, 98> KeyboardScancodeNames = {{
@@ -409,6 +417,178 @@ std::array<InputBinding, KeyboardActionCount> createDefaultKeyboardBindings()
     }
 
     return bindings;
+}
+
+GamepadBinding gamepadButtonInputBinding(SDL_GamepadButton button)
+{
+    if (button < 0 || button >= SDL_GAMEPAD_BUTTON_COUNT)
+    {
+        return {};
+    }
+    return GamepadBinding{GamepadBindingKind::Button, button, SDL_GAMEPAD_AXIS_INVALID};
+}
+
+GamepadBinding gamepadTriggerInputBinding(SDL_GamepadAxis axis)
+{
+    if (axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
+    {
+        return {};
+    }
+    return GamepadBinding{GamepadBindingKind::Trigger, SDL_GAMEPAD_BUTTON_INVALID, axis};
+}
+
+std::array<GamepadBinding, KeyboardActionCount> createDefaultGamepadBindings()
+{
+    std::array<GamepadBinding, KeyboardActionCount> bindings = {};
+    const auto button = [&bindings](KeyboardAction action, SDL_GamepadButton gamepadButton)
+    {
+        bindings[keyboardActionIndex(action)] = gamepadButtonInputBinding(gamepadButton);
+    };
+
+    button(KeyboardAction::Jump, SDL_GAMEPAD_BUTTON_SOUTH);
+    button(KeyboardAction::Use, SDL_GAMEPAD_BUTTON_WEST);
+    button(KeyboardAction::Cast, SDL_GAMEPAD_BUTTON_NORTH);
+    button(KeyboardAction::Combat, SDL_GAMEPAD_BUTTON_EAST);
+    button(KeyboardAction::CastReady, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
+    button(KeyboardAction::CharCycle, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
+    button(KeyboardAction::MapBook, SDL_GAMEPAD_BUTTON_BACK);
+    button(KeyboardAction::QuickRef, SDL_GAMEPAD_BUTTON_START);
+    button(KeyboardAction::AlwaysRun, SDL_GAMEPAD_BUTTON_LEFT_STICK);
+    button(KeyboardAction::ToggleCursorMode, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
+    button(KeyboardAction::FlyUp, SDL_GAMEPAD_BUTTON_DPAD_UP);
+    button(KeyboardAction::FlyDown, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+    button(KeyboardAction::ZoomOut, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+    button(KeyboardAction::ZoomIn, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+    bindings[keyboardActionIndex(KeyboardAction::Cast)] = gamepadTriggerInputBinding(
+        SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+    bindings[keyboardActionIndex(KeyboardAction::Attack)] = gamepadTriggerInputBinding(
+        SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+    button(KeyboardAction::MenuAccept, SDL_GAMEPAD_BUTTON_SOUTH);
+    button(KeyboardAction::MenuBack, SDL_GAMEPAD_BUTTON_EAST);
+    button(KeyboardAction::MenuSecondary, SDL_GAMEPAD_BUTTON_WEST);
+    return bindings;
+}
+
+GamepadBinding parseGamepadBindingName(const std::string &name)
+{
+    const std::string normalized = normalizeBindingName(name);
+    if (normalized.empty() || normalized == "unbound" || normalized == "none")
+    {
+        return {};
+    }
+
+    struct NamedButton
+    {
+        std::string_view name;
+        SDL_GamepadButton button;
+    };
+    static constexpr std::array<NamedButton, 25> Buttons = {{
+        {"a", SDL_GAMEPAD_BUTTON_SOUTH},
+        {"south", SDL_GAMEPAD_BUTTON_SOUTH},
+        {"b", SDL_GAMEPAD_BUTTON_EAST},
+        {"east", SDL_GAMEPAD_BUTTON_EAST},
+        {"x", SDL_GAMEPAD_BUTTON_WEST},
+        {"west", SDL_GAMEPAD_BUTTON_WEST},
+        {"y", SDL_GAMEPAD_BUTTON_NORTH},
+        {"north", SDL_GAMEPAD_BUTTON_NORTH},
+        {"back", SDL_GAMEPAD_BUTTON_BACK},
+        {"view", SDL_GAMEPAD_BUTTON_BACK},
+        {"guide", SDL_GAMEPAD_BUTTON_GUIDE},
+        {"start", SDL_GAMEPAD_BUTTON_START},
+        {"menu", SDL_GAMEPAD_BUTTON_START},
+        {"leftstick", SDL_GAMEPAD_BUTTON_LEFT_STICK},
+        {"l3", SDL_GAMEPAD_BUTTON_LEFT_STICK},
+        {"rightstick", SDL_GAMEPAD_BUTTON_RIGHT_STICK},
+        {"r3", SDL_GAMEPAD_BUTTON_RIGHT_STICK},
+        {"leftshoulder", SDL_GAMEPAD_BUTTON_LEFT_SHOULDER},
+        {"lb", SDL_GAMEPAD_BUTTON_LEFT_SHOULDER},
+        {"rightshoulder", SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER},
+        {"rb", SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER},
+        {"dpadup", SDL_GAMEPAD_BUTTON_DPAD_UP},
+        {"dpaddown", SDL_GAMEPAD_BUTTON_DPAD_DOWN},
+        {"dpadleft", SDL_GAMEPAD_BUTTON_DPAD_LEFT},
+        {"dpadright", SDL_GAMEPAD_BUTTON_DPAD_RIGHT},
+    }};
+    for (const NamedButton &entry : Buttons)
+    {
+        if (normalized == entry.name)
+        {
+            return gamepadButtonInputBinding(entry.button);
+        }
+    }
+    if (normalized == "lefttrigger" || normalized == "lt")
+    {
+        return gamepadTriggerInputBinding(SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+    }
+    if (normalized == "righttrigger" || normalized == "rt")
+    {
+        return gamepadTriggerInputBinding(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+    }
+    if (normalized.rfind("button", 0) == 0)
+    {
+        char *pEnd = nullptr;
+        const long parsed = std::strtol(normalized.c_str() + 6, &pEnd, 10);
+        if (pEnd != nullptr && *pEnd == '\0' && parsed >= 0 && parsed < SDL_GAMEPAD_BUTTON_COUNT)
+        {
+            return gamepadButtonInputBinding(static_cast<SDL_GamepadButton>(parsed));
+        }
+    }
+    return {};
+}
+
+std::string gamepadBindingName(const GamepadBinding &binding)
+{
+    if (binding.kind == GamepadBindingKind::Trigger)
+    {
+        return binding.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? "LeftTrigger" : "RightTrigger";
+    }
+    if (binding.kind != GamepadBindingKind::Button)
+    {
+        return "Unbound";
+    }
+    switch (binding.button)
+    {
+    case SDL_GAMEPAD_BUTTON_SOUTH: return "A";
+    case SDL_GAMEPAD_BUTTON_EAST: return "B";
+    case SDL_GAMEPAD_BUTTON_WEST: return "X";
+    case SDL_GAMEPAD_BUTTON_NORTH: return "Y";
+    case SDL_GAMEPAD_BUTTON_BACK: return "Back";
+    case SDL_GAMEPAD_BUTTON_GUIDE: return "Guide";
+    case SDL_GAMEPAD_BUTTON_START: return "Start";
+    case SDL_GAMEPAD_BUTTON_LEFT_STICK: return "LeftStick";
+    case SDL_GAMEPAD_BUTTON_RIGHT_STICK: return "RightStick";
+    case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: return "LeftShoulder";
+    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return "RightShoulder";
+    case SDL_GAMEPAD_BUTTON_DPAD_UP: return "DpadUp";
+    case SDL_GAMEPAD_BUTTON_DPAD_DOWN: return "DpadDown";
+    case SDL_GAMEPAD_BUTTON_DPAD_LEFT: return "DpadLeft";
+    case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return "DpadRight";
+    default: return "Button_" + std::to_string(static_cast<int>(binding.button));
+    }
+}
+
+std::string gamepadBindingDisplayName(const GamepadBinding &binding)
+{
+    if (binding.kind == GamepadBindingKind::Trigger)
+    {
+        return binding.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? "LT" : "RT";
+    }
+    if (binding.kind != GamepadBindingKind::Button)
+    {
+        return "Unbound";
+    }
+    switch (binding.button)
+    {
+    case SDL_GAMEPAD_BUTTON_LEFT_STICK: return "L3";
+    case SDL_GAMEPAD_BUTTON_RIGHT_STICK: return "R3";
+    case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: return "LB";
+    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return "RB";
+    case SDL_GAMEPAD_BUTTON_DPAD_UP: return "D-Up";
+    case SDL_GAMEPAD_BUTTON_DPAD_DOWN: return "D-Down";
+    case SDL_GAMEPAD_BUTTON_DPAD_LEFT: return "D-Left";
+    case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: return "D-Right";
+    default: return gamepadBindingName(binding);
+    }
 }
 
 SDL_Scancode parseKeyboardBindingName(const std::string &name)

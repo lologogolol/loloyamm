@@ -28,6 +28,27 @@ constexpr float MobileDebugConsoleGestureTopEdgeNormalized = 0.055f;
 constexpr float MobileDebugConsoleGestureMinDragNormalized = 0.14f;
 constexpr float MobileDebugConsoleGestureMaxHorizontalNormalized = 0.09f;
 constexpr uint64_t MobileLongPressInspectNanoseconds = 400'000'000ULL;
+constexpr int16_t GamepadAxisDeadZone = 8000;
+constexpr float GamepadDigitalThreshold = 0.25f;
+constexpr float GamepadTriggerThreshold = 0.35f;
+constexpr float GamepadLookPixelsPerFrame = 10.0f;
+constexpr float GamepadMenuDigitalThreshold = 0.55f;
+constexpr float GamepadMenuInitialRepeatSeconds = 0.36f;
+constexpr float GamepadMenuRepeatSeconds = 0.11f;
+constexpr float GamepadMenuCursorMinimumPixelsPerSecond = 260.0f;
+constexpr float GamepadMenuCursorMaximumPixelsPerSecond = 1260.0f;
+
+float normalizedGamepadAxis(int16_t value)
+{
+    const int magnitude = std::abs(static_cast<int>(value));
+    if (magnitude <= GamepadAxisDeadZone)
+    {
+        return 0.0f;
+    }
+    const float normalized = static_cast<float>(magnitude - GamepadAxisDeadZone)
+        / static_cast<float>(std::numeric_limits<int16_t>::max() - GamepadAxisDeadZone);
+    return value < 0 ? -normalized : normalized;
+}
 
 GameplayButtonInputState buildButtonState(bool held, bool previousHeld)
 {
@@ -66,8 +87,54 @@ void suppressButtonWhileHeld(bool physicalHeld, bool &logicalHeld, bool &suppres
 
 } // namespace
 
+GameInputSystem::~GameInputSystem()
+{
+    closeGamepad();
+}
+
+void GameInputSystem::closeGamepad()
+{
+    if (m_pGamepad != nullptr)
+    {
+        SDL_CloseGamepad(m_pGamepad);
+        m_pGamepad = nullptr;
+    }
+    m_gamepadInteractCursorMode = false;
+    m_gamepadCursorDriving = false;
+}
+
+void GameInputSystem::ensureGamepadOpen()
+{
+    if (m_pGamepad != nullptr || m_initialGamepadScanComplete)
+    {
+        return;
+    }
+
+    int gamepadCount = 0;
+    SDL_JoystickID *pGamepadIds = SDL_GetGamepads(&gamepadCount);
+    if (pGamepadIds != nullptr && gamepadCount > 0)
+    {
+        m_pGamepad = SDL_OpenGamepad(pGamepadIds[0]);
+    }
+    SDL_free(pGamepadIds);
+    m_initialGamepadScanComplete = true;
+}
+
 void GameInputSystem::handleSdlEvent(const SDL_Event &event)
 {
+    if (event.type == SDL_EVENT_GAMEPAD_ADDED && m_pGamepad == nullptr)
+    {
+        m_pGamepad = SDL_OpenGamepad(event.gdevice.which);
+        m_initialGamepadScanComplete = true;
+    }
+    else if (event.type == SDL_EVENT_GAMEPAD_REMOVED
+        && m_pGamepad != nullptr
+        && SDL_GetGamepadID(m_pGamepad) == event.gdevice.which)
+    {
+        closeGamepad();
+        m_initialGamepadScanComplete = false;
+    }
+
 #if !defined(__ANDROID__) && !defined(OPENYAMM_IOS)
     if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP)
         && event.button.button >= SDL_BUTTON_LEFT && event.button.button <= SDL_BUTTON_RIGHT)
@@ -78,6 +145,11 @@ void GameInputSystem::handleSdlEvent(const SDL_Event &event)
         }
 
         m_pendingMouseButtonEvents[event.button.button - SDL_BUTTON_LEFT].push_back(event.button);
+        if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT
+            && m_pendingAutoHoldLeftClickPresses < std::numeric_limits<uint16_t>::max())
+        {
+            ++m_pendingAutoHoldLeftClickPresses;
+        }
         return;
     }
 
@@ -298,7 +370,9 @@ void GameInputSystem::updateFromEngineInput(
     bool mobileFlightControlsEnabled,
     bool mobileInspectControlEnabled,
     bool mobileLongPressInspectEnabled,
-    std::span<const GameplayTouchControl> touchControls)
+    std::span<const GameplayTouchControl> touchControls,
+    bool menuNavigationEnabled,
+    float frameDeltaSeconds)
 {
     m_frame = {};
     m_frame.turboMovementEnabled = settings.turboMovementEnabled;
@@ -433,6 +507,7 @@ void GameInputSystem::updateFromEngineInput(
 #else
     const float relativeMouseX = m_pendingRelativeMouseX;
     const float relativeMouseY = m_pendingRelativeMouseY;
+    const bool physicalMouseMoved = relativeMouseX != 0.0f || relativeMouseY != 0.0f;
     m_pendingRelativeMouseX = 0.0f;
     m_pendingRelativeMouseY = 0.0f;
     const float mouseSensitivityScale = static_cast<float>(std::clamp(settings.mouseSensitivity, 0, 100)) / 100.0f;
@@ -453,6 +528,20 @@ void GameInputSystem::updateFromEngineInput(
         physicalMiddleMouseButtonHeld,
         middleMouseButtonHeld,
         m_suppressMiddleMouseButtonUntilReleased);
+
+    if (blockGameplayInput || !settings.autoHoldLeftClick)
+    {
+        m_autoHoldLeftClickLatched = false;
+    }
+    else if ((m_pendingAutoHoldLeftClickPresses & 1U) != 0)
+    {
+        m_autoHoldLeftClickLatched = !m_autoHoldLeftClickLatched;
+    }
+    m_pendingAutoHoldLeftClickPresses = 0;
+    if (settings.autoHoldLeftClick)
+    {
+        leftMouseButtonHeld = !blockGameplayInput && m_autoHoldLeftClickLatched;
+    }
 
     std::array<bool, KeyboardActionCount> actionHeld = {};
 
@@ -498,6 +587,242 @@ void GameInputSystem::updateFromEngineInput(
 
         actionHeld[keyboardActionIndex(definition.action)] = held;
     }
+
+#if !defined(__ANDROID__) && !defined(OPENYAMM_IOS)
+    ensureGamepadOpen();
+    if (!blockGameplayInput && m_pGamepad != nullptr)
+    {
+        const float leftX = normalizedGamepadAxis(SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_LEFTX));
+        const float leftY = normalizedGamepadAxis(SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_LEFTY));
+        const float rightX = normalizedGamepadAxis(SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_RIGHTX));
+        const float rightY = normalizedGamepadAxis(SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_RIGHTY));
+        std::array<bool, KeyboardActionCount> gamepadActionHeld = {};
+        for (size_t actionIndex = 0; actionIndex < gamepadActionHeld.size(); ++actionIndex)
+        {
+            const GamepadBinding binding = settings.gamepad.bindings[actionIndex];
+            if (binding.kind == GamepadBindingKind::Button)
+            {
+                gamepadActionHeld[actionIndex] = SDL_GetGamepadButton(m_pGamepad, binding.button);
+            }
+            else if (binding.kind == GamepadBindingKind::Trigger)
+            {
+                gamepadActionHeld[actionIndex] = normalizedGamepadAxis(
+                    SDL_GetGamepadAxis(m_pGamepad, binding.axis)) > GamepadTriggerThreshold;
+            }
+        }
+
+        const size_t toggleIndex = keyboardActionIndex(KeyboardAction::ToggleCursorMode);
+        const bool toggleHeld = actionHeld[toggleIndex] || gamepadActionHeld[toggleIndex];
+        if (!menuNavigationEnabled && toggleHeld && !m_previousActionHeld[toggleIndex])
+        {
+            m_gamepadInteractCursorMode = !m_gamepadInteractCursorMode;
+            m_gamepadCursorDriving = m_gamepadInteractCursorMode;
+        }
+        actionHeld[toggleIndex] = toggleHeld;
+        m_frame.gamepadCursorModeActive = m_gamepadInteractCursorMode && !menuNavigationEnabled;
+
+        if (menuNavigationEnabled || m_frame.gamepadCursorModeActive)
+        {
+            const float rightMagnitude = std::clamp(std::hypot(rightX, rightY), 0.0f, 1.0f);
+            if (!m_gamepadCursorInitialized || m_gamepadCursorScreenWidth != screenWidth
+                || m_gamepadCursorScreenHeight != screenHeight)
+            {
+                m_gamepadCursorX = std::clamp(m_frame.pointerX, 0.0f, static_cast<float>(std::max(0, screenWidth - 1)));
+                m_gamepadCursorY = std::clamp(
+                    m_frame.pointerY, 0.0f, static_cast<float>(std::max(0, screenHeight - 1)));
+                if (screenWidth > 0 && screenHeight > 0 && m_gamepadCursorX == 0.0f && m_gamepadCursorY == 0.0f)
+                {
+                    m_gamepadCursorX = static_cast<float>(screenWidth) * 0.5f;
+                    m_gamepadCursorY = static_cast<float>(screenHeight) * 0.5f;
+                }
+                m_gamepadCursorScreenWidth = screenWidth;
+                m_gamepadCursorScreenHeight = screenHeight;
+                m_gamepadCursorInitialized = true;
+            }
+
+            if (physicalMouseMoved && (!m_gamepadCursorDriving
+                    || std::hypot(m_frame.pointerX - m_gamepadCursorX, m_frame.pointerY - m_gamepadCursorY) > 3.0f))
+            {
+                m_gamepadCursorDriving = false;
+                m_gamepadMenuFocusMode = false;
+                m_gamepadCursorX = m_frame.pointerX;
+                m_gamepadCursorY = m_frame.pointerY;
+            }
+
+            if (rightMagnitude > 0.0f && screenWidth > 0 && screenHeight > 0)
+            {
+                m_gamepadCursorDriving = true;
+                m_gamepadMenuFocusMode = false;
+                const float speed = GamepadMenuCursorMinimumPixelsPerSecond
+                    + (GamepadMenuCursorMaximumPixelsPerSecond - GamepadMenuCursorMinimumPixelsPerSecond)
+                        * rightMagnitude * rightMagnitude;
+                const float resolutionScale = std::max(0.75f, static_cast<float>(screenHeight) / 720.0f);
+                const float stepSeconds = std::clamp(frameDeltaSeconds, 0.0f, 0.05f);
+                m_gamepadCursorX = std::clamp(m_gamepadCursorX + rightX / rightMagnitude * speed * resolutionScale
+                        * stepSeconds,
+                    0.0f, static_cast<float>(screenWidth - 1));
+                m_gamepadCursorY = std::clamp(m_gamepadCursorY + rightY / rightMagnitude * speed * resolutionScale
+                        * stepSeconds,
+                    0.0f, static_cast<float>(screenHeight - 1));
+                SDL_Window *pWindow = SDL_GetMouseFocus();
+                if (pWindow == nullptr)
+                {
+                    pWindow = SDL_GetKeyboardFocus();
+                }
+                if (pWindow != nullptr)
+                {
+                    SDL_WarpMouseInWindow(pWindow, m_gamepadCursorX, m_gamepadCursorY);
+                }
+            }
+            if (m_gamepadCursorDriving)
+            {
+                m_frame.pointerX = m_gamepadCursorX;
+                m_frame.pointerY = m_gamepadCursorY;
+            }
+
+            if (menuNavigationEnabled)
+            {
+                std::array<bool, 4> directions = {
+                    SDL_GetGamepadButton(m_pGamepad, SDL_GAMEPAD_BUTTON_DPAD_UP),
+                    SDL_GetGamepadButton(m_pGamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN),
+                    SDL_GetGamepadButton(m_pGamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT),
+                    SDL_GetGamepadButton(m_pGamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)};
+                if (!directions[0] && !directions[1] && !directions[2] && !directions[3])
+                {
+                    if (std::abs(leftY) >= std::abs(leftX) && std::abs(leftY) > GamepadMenuDigitalThreshold)
+                    {
+                        directions[leftY < 0.0f ? 0 : 1] = true;
+                    }
+                    else if (std::abs(leftX) > GamepadMenuDigitalThreshold)
+                    {
+                        directions[leftX < 0.0f ? 2 : 3] = true;
+                    }
+                }
+                constexpr std::array<SDL_Scancode, 4> DirectionScancodes = {
+                    SDL_SCANCODE_UP, SDL_SCANCODE_DOWN, SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT};
+                const float repeatStep = std::clamp(frameDeltaSeconds, 0.0f, 0.1f);
+                for (size_t direction = 0; direction < directions.size(); ++direction)
+                {
+                    const SDL_Scancode scancode = DirectionScancodes[direction];
+                    m_frame.keyboardHeld[scancode] = directions[direction];
+                    if (directions[direction])
+                    {
+                        m_gamepadMenuFocusMode = true;
+                        bool press = !m_previousGamepadMenuDirections[direction];
+                        if (press)
+                        {
+                            m_gamepadMenuRepeatSeconds[direction] = GamepadMenuInitialRepeatSeconds;
+                        }
+                        else
+                        {
+                            m_gamepadMenuRepeatSeconds[direction] -= repeatStep;
+                            if (m_gamepadMenuRepeatSeconds[direction] <= 0.0f)
+                            {
+                                press = true;
+                                m_gamepadMenuRepeatSeconds[direction] += GamepadMenuRepeatSeconds;
+                            }
+                        }
+                        if (press && m_frame.keyboardPressCounts[scancode] < std::numeric_limits<uint16_t>::max())
+                        {
+                            ++m_frame.keyboardPressCounts[scancode];
+                        }
+                    }
+                    else
+                    {
+                        m_gamepadMenuRepeatSeconds[direction] = 0.0f;
+                    }
+                    m_previousGamepadMenuDirections[direction] = directions[direction];
+                }
+
+                const bool acceptHeld = gamepadActionHeld[keyboardActionIndex(KeyboardAction::MenuAccept)];
+                const bool backHeld = gamepadActionHeld[keyboardActionIndex(KeyboardAction::MenuBack)];
+                if (m_gamepadMenuFocusMode)
+                {
+                    m_frame.keyboardHeld[SDL_SCANCODE_RETURN] = acceptHeld;
+                    if (acceptHeld && !m_previousGamepadMenuAcceptHeld
+                        && m_frame.keyboardPressCounts[SDL_SCANCODE_RETURN] < std::numeric_limits<uint16_t>::max())
+                    {
+                        ++m_frame.keyboardPressCounts[SDL_SCANCODE_RETURN];
+                    }
+                }
+                else
+                {
+                    leftMouseButtonHeld |= acceptHeld;
+                    rightMouseButtonHeld |=
+                        gamepadActionHeld[keyboardActionIndex(KeyboardAction::MenuSecondary)];
+                }
+                m_frame.keyboardHeld[SDL_SCANCODE_ESCAPE] = backHeld;
+                if (backHeld && !m_previousGamepadMenuBackHeld
+                    && m_frame.keyboardPressCounts[SDL_SCANCODE_ESCAPE] < std::numeric_limits<uint16_t>::max())
+                {
+                    ++m_frame.keyboardPressCounts[SDL_SCANCODE_ESCAPE];
+                }
+                m_previousGamepadMenuAcceptHeld = acceptHeld;
+                m_previousGamepadMenuBackHeld = backHeld;
+            }
+            else
+            {
+                m_gamepadMenuFocusMode = false;
+                m_previousGamepadMenuDirections.fill(false);
+                m_gamepadMenuRepeatSeconds.fill(0.0f);
+                m_previousGamepadMenuAcceptHeld = false;
+                m_previousGamepadMenuBackHeld = false;
+                leftMouseButtonHeld |= gamepadActionHeld[keyboardActionIndex(KeyboardAction::MenuAccept)];
+                rightMouseButtonHeld |= gamepadActionHeld[keyboardActionIndex(KeyboardAction::MenuSecondary)];
+            }
+        }
+        else
+        {
+            m_gamepadMenuFocusMode = false;
+            m_gamepadCursorDriving = false;
+            m_previousGamepadMenuDirections.fill(false);
+            m_gamepadMenuRepeatSeconds.fill(0.0f);
+            m_previousGamepadMenuAcceptHeld = false;
+            m_previousGamepadMenuBackHeld = false;
+
+            for (size_t actionIndex = 0; actionIndex < gamepadActionHeld.size(); ++actionIndex)
+            {
+                const KeyboardAction action = static_cast<KeyboardAction>(actionIndex);
+                if (action != KeyboardAction::MenuAccept
+                    && action != KeyboardAction::MenuBack
+                    && action != KeyboardAction::MenuSecondary)
+                {
+                    actionHeld[actionIndex] |= gamepadActionHeld[actionIndex];
+                }
+            }
+
+            const bool keyboardMovement =
+                actionHeld[keyboardActionIndex(KeyboardAction::Forward)]
+                || actionHeld[keyboardActionIndex(KeyboardAction::Backward)]
+                || actionHeld[keyboardActionIndex(KeyboardAction::Left)]
+                || actionHeld[keyboardActionIndex(KeyboardAction::Right)];
+            actionHeld[keyboardActionIndex(KeyboardAction::Forward)] |= leftY < -GamepadDigitalThreshold;
+            actionHeld[keyboardActionIndex(KeyboardAction::Backward)] |= leftY > GamepadDigitalThreshold;
+            actionHeld[keyboardActionIndex(KeyboardAction::Left)] |= leftX < -GamepadDigitalThreshold;
+            actionHeld[keyboardActionIndex(KeyboardAction::Right)] |= leftX > GamepadDigitalThreshold;
+            const float movementMagnitude = std::clamp(std::hypot(leftX, leftY), 0.0f, 1.0f);
+            if (!keyboardMovement && movementMagnitude > 0.0f)
+            {
+                m_frame.movementSpeedScale = movementMagnitude;
+            }
+
+            const float lookScale = GamepadLookPixelsPerFrame
+                * static_cast<float>(std::clamp(settings.mouseSensitivity, 0, 100)) / 100.0f;
+            m_frame.relativeMouseX += rightX * lookScale;
+            m_frame.relativeMouseY += (settings.invertMouseY ? -rightY : rightY) * lookScale;
+        }
+    }
+    else
+    {
+        m_frame.gamepadCursorModeActive = false;
+        m_gamepadMenuFocusMode = false;
+        m_gamepadCursorDriving = false;
+        m_previousGamepadMenuDirections.fill(false);
+        m_gamepadMenuRepeatSeconds.fill(0.0f);
+        m_previousGamepadMenuAcceptHeld = false;
+        m_previousGamepadMenuBackHeld = false;
+    }
+#endif
 
 #if defined(__ANDROID__) || defined(OPENYAMM_IOS)
     const bool useMobileGameplayTouchControls = mobileGameplayTouchControlsEnabled && !blockGameplayInput;
@@ -1032,6 +1357,8 @@ void GameInputSystem::suppressMouseButtonsUntilReleased()
     m_previousLeftMouseButtonHeld = false;
     m_previousRightMouseButtonHeld = false;
     m_previousMiddleMouseButtonHeld = false;
+    m_pendingAutoHoldLeftClickPresses = 0;
+    m_autoHoldLeftClickLatched = false;
 }
 
 void GameInputSystem::guardClicksAfterWindowOpened()

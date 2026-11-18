@@ -303,6 +303,36 @@ bool ModelInstanceSystem::setNodeRotations(ModelInstanceHandle handle, std::vect
     return true;
 }
 
+bool ModelInstanceSystem::setNodeWorldTransforms(
+    ModelInstanceHandle handle,
+    std::vector<ModelNodeWorldTransform> transforms)
+{
+    Slot *pSlot = find(handle);
+    if (pSlot == nullptr || std::any_of(transforms.begin(), transforms.end(), [&](const ModelNodeWorldTransform &entry)
+        {
+            return entry.nodeIndex >= pSlot->asset->nodes.size()
+                || !std::all_of(entry.matrix.begin(), entry.matrix.end(),
+                    [](float value) { return std::isfinite(value); });
+        }))
+    {
+        return false;
+    }
+    std::sort(transforms.begin(), transforms.end(), [&](const ModelNodeWorldTransform &left,
+                                                         const ModelNodeWorldTransform &right)
+    {
+        const std::vector<uint32_t> &order = pSlot->asset->hierarchyOrder;
+        const auto leftPosition = std::find(order.begin(), order.end(), left.nodeIndex);
+        const auto rightPosition = std::find(order.begin(), order.end(), right.nodeIndex);
+        return leftPosition < rightPosition;
+    });
+    if (pSlot->nodeWorldTransforms != transforms)
+    {
+        pSlot->nodeWorldTransforms = std::move(transforms);
+        evaluate(*pSlot, false);
+    }
+    return true;
+}
+
 bool ModelInstanceSystem::setAttachments(ModelInstanceHandle handle, std::vector<ModelAttachment> attachments)
 {
     Slot *pSlot = find(handle);
@@ -972,6 +1002,31 @@ void ModelInstanceSystem::evaluateMatrices(const Slot &slot) const
                 slot.rotatedNodes[nodeIndex] = 1;
                 slot.pose.globalMatrices[nodeIndex] = multiplyModelMatrices(about, slot.pose.globalMatrices[nodeIndex]);
             }
+        }
+    }
+    if (!slot.nodeWorldTransforms.empty())
+    {
+        slot.worldTransformIndices.assign(slot.asset->nodes.size(), -1);
+        for (size_t index = 0; index < slot.nodeWorldTransforms.size(); ++index)
+        {
+            slot.worldTransformIndices[slot.nodeWorldTransforms[index].nodeIndex] = int32_t(index);
+        }
+        for (uint32_t nodeIndex : slot.asset->hierarchyOrder)
+        {
+            const int32_t transformIndex = slot.worldTransformIndices[nodeIndex];
+            if (transformIndex >= 0)
+            {
+                slot.pose.globalMatrices[nodeIndex] = slot.nodeWorldTransforms[size_t(transformIndex)].matrix;
+                continue;
+            }
+            const int parentIndex = slot.asset->nodes[nodeIndex].parentIndex;
+            if (parentIndex >= 0 && slot.worldTransformIndices[size_t(parentIndex)] != -2)
+            {
+                slot.pose.globalMatrices[nodeIndex] = multiplyModelMatrices(
+                    slot.pose.globalMatrices[size_t(parentIndex)], slot.pose.localMatrices[nodeIndex]);
+            }
+            slot.worldTransformIndices[nodeIndex] = parentIndex >= 0
+                ? slot.worldTransformIndices[size_t(parentIndex)] : -2;
         }
     }
     ++slot.pose.matrixRevision;

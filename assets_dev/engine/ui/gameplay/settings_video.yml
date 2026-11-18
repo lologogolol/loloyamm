@@ -465,7 +465,7 @@ elements:
       visible: true
       interactive: false
       text:
-        value: Textures
+        value: Classic graphics
         font: fondamento
         color: '#e0c990'
         align_x: left
@@ -475,7 +475,24 @@ elements:
     - id: SettingsVideoGroup3
       anchor: top_left
       offset_x: 0.0
-      offset_y: 463.7193
+      offset_y: 537.195
+      width: 525.3333
+      height: 18.1333
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Textures
+        font: fondamento
+        color: '#e0c990'
+        align_x: left
+        align_y: middle
+        scale: 0.4
+        pad_x: 0.0
+    - id: SettingsVideoGroup4
+      anchor: top_left
+      offset_x: 0.0
+      offset_y: 644.9123
       width: 525.3333
       height: 18.1333
       z_index: 10
@@ -489,10 +506,10 @@ elements:
         align_y: middle
         scale: 0.4
         pad_x: 0.0
-    - id: SettingsVideoGroup4
+    - id: SettingsVideoGroup5
       anchor: top_left
       offset_x: 0.0
-      offset_y: 713.4877
+      offset_y: 894.6807
       width: 525.3333
       height: 18.1333
       z_index: 10
@@ -506,10 +523,10 @@ elements:
         align_y: middle
         scale: 0.4
         pad_x: 0.0
-    - id: SettingsVideoGroup5
+    - id: SettingsVideoGroup6
       anchor: top_left
       offset_x: 0.0
-      offset_y: 963.2561
+      offset_y: 1144.4491
       width: 525.3333
       height: 18.1333
       z_index: 10
@@ -523,10 +540,10 @@ elements:
         align_y: middle
         scale: 0.4
         pad_x: 0.0
-    - id: SettingsVideoGroup6
+    - id: SettingsVideoGroup7
       anchor: top_left
       offset_x: 0.0
-      offset_y: 1187.7493
+      offset_y: 1368.9423
       width: 525.3333
       height: 18.1333
       z_index: 10
@@ -540,10 +557,10 @@ elements:
         align_y: middle
         scale: 0.4
         pad_x: 0.0
-    - id: SettingsVideoGroup7
+    - id: SettingsVideoGroup8
       anchor: top_left
       offset_x: 0.0
-      offset_y: 1384.9423
+      offset_y: 1566.1353
       width: 525.3333
       height: 18.1333
       z_index: 10
@@ -557,10 +574,10 @@ elements:
         align_y: middle
         scale: 0.4
         pad_x: 0.0
-    - id: SettingsVideoGroup8
+    - id: SettingsVideoGroup9
       anchor: top_left
       offset_x: 0.0
-      offset_y: 1570.5102
+      offset_y: 1751.7032
       width: 525.3333
       height: 18.1333
       z_index: 10
@@ -938,10 +955,155 @@ elements:
       asset:
         default: hud_x2/menus/omenu_toggle_off.png
         selected: hud_x2/menus/omenu_toggle_on.png
-    - id: SettingsVideoTextureFilteringLabel
+    - id: SettingsVideoClassicEnvironmentGraphicsLabel
       anchor: top_left
       offset_x: 1.6
       offset_y: 381.602
+      width: 435.7333
+      height: 14.0752
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Classic environments
+        font: menu_arrus
+        color: '#eadfc6'
+        align_x: left
+        align_y: middle
+        scale: 0.74105
+        pad_x: 0.0
+    - id: SettingsVideoClassicEnvironmentGraphicsDescription
+      anchor: top_left
+      offset_x: 1.6
+      offset_y: 397.8105
+      width: 435.7333
+      height: 23.0336
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Use purchased MM6-MM8 world textures and object sprites. The interface stays updated; restart required.
+        font: menu_lucida
+        color: '#aeb5a5'
+        align_x: left
+        align_y: middle
+        scale: 0.60235
+        pad_x: 0.0
+    - id: SettingsVideoClassicEnvironmentGraphicsControl
+      anchor: top_left
+      offset_x: 453.3333
+      offset_y: 385.1441
+      width: 70.4
+      height: 32.158
+      z_index: 10
+      visible: true
+      interactive: true
+      asset:
+        default: hud_x2/menus/omenu_toggle_off.png
+        selected: hud_x2/menus/omenu_toggle_on.png
+    - id: SettingsVideoClassicActorGraphicsLabel
+      anchor: top_left
+      offset_x: 1.6
+      offset_y: 432.0441
+      width: 435.7333
+      height: 14.0752
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Classic actors
+        font: menu_arrus
+        color: '#eadfc6'
+        align_x: left
+        align_y: middle
+        scale: 0.74105
+        pad_x: 0.0
+    - id: SettingsVideoClassicActorGraphicsDescription
+      anchor: top_left
+      offset_x: 1.6
+      offset_y: 448.2526
+      width: 435.7333
+      height: 23.0336
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Use purchased creature sprites instead of 3D actor models. Independent of environments; restart required.
+        font: menu_lucida
+        color: '#aeb5a5'
+        align_x: left
+        align_y: middle
+        scale: 0.60235
+        pad_x: 0.0
+    - id: SettingsVideoClassicActorGraphicsControl
+      anchor: top_left
+      offset_x: 453.3333
+      offset_y: 435.5862
+      width: 70.4
+      height: 32.158
+      z_index: 10
+      visible: true
+      interactive: true
+      asset:
+        default: hud_x2/menus/omenu_toggle_off.png
+        selected: hud_x2/menus/omenu_toggle_on.png
+    - id: SettingsVideoPurchasedGamesFolderLabel
+      anchor: top_left
+      offset_x: 1.6
+      offset_y: 482.4862
+      width: 339.7333
+      height: 14.0752
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Purchased games folder
+        font: menu_arrus
+        color: '#eadfc6'
+        align_x: left
+        align_y: middle
+        scale: 0.74105
+        pad_x: 0.0
+    - id: SettingsVideoPurchasedGamesFolderDescription
+      anchor: top_left
+      offset_x: 1.6
+      offset_y: 498.6947
+      width: 339.7333
+      height: 23.0336
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Folder containing Might and Magic 6, Might and Magic 7 and Might and Magic 8.
+        font: menu_lucida
+        color: '#aeb5a5'
+        align_x: left
+        align_y: middle
+        scale: 0.60235
+        pad_x: 0.0
+    - id: SettingsVideoPurchasedGamesFolderControl
+      anchor: top_left
+      offset_x: 357.3333
+      offset_y: 490.3739
+      width: 166.4
+      height: 23.4667
+      z_index: 10
+      visible: true
+      interactive: true
+      asset:
+        default: hud_x2/menus/omenu_text_field.png
+      text:
+        value: '{purchased_games_folder}'
+        font: menu_lucida
+        color: '#e9dcc0'
+        align_x: left
+        align_y: middle
+        scale: 0.71529
+        pad_x: 6.9333
+    - id: SettingsVideoTextureFilteringLabel
+      anchor: top_left
+      offset_x: 1.6
+      offset_y: 562.795
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -958,7 +1120,7 @@ elements:
     - id: SettingsVideoTextureFilteringDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 397.8105
+      offset_y: 579.0035
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -975,7 +1137,7 @@ elements:
     - id: SettingsVideoTextureFilteringControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 379.3856
+      offset_y: 560.5787
       width: 70.4
       height: 32.158
       z_index: 10
@@ -987,7 +1149,7 @@ elements:
     - id: SettingsVideoTerrainAnisotropyLabel
       anchor: top_left
       offset_x: 13.6
-      offset_y: 420.5273
+      offset_y: 601.7203
       width: 383.2
       height: 14.0752
       z_index: 10
@@ -1004,7 +1166,7 @@ elements:
     - id: SettingsVideoTerrainAnisotropyDescription
       anchor: top_left
       offset_x: 13.6
-      offset_y: 436.7358
+      offset_y: 617.9288
       width: 383.2
       height: 11.5168
       z_index: 10
@@ -1021,7 +1183,7 @@ elements:
     - id: SettingsVideoTerrainAnisotropyControl
       anchor: top_left
       offset_x: 412.8
-      offset_y: 422.6566
+      offset_y: 603.8496
       width: 110.9333
       height: 23.4667
       z_index: 10
@@ -1040,7 +1202,7 @@ elements:
     - id: SettingsVideoModelShadowQualityLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 489.3193
+      offset_y: 670.5123
       width: 395.2
       height: 14.0752
       z_index: 10
@@ -1057,7 +1219,7 @@ elements:
     - id: SettingsVideoModelShadowQualityDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 505.5278
+      offset_y: 686.7208
       width: 395.2
       height: 11.5168
       z_index: 10
@@ -1074,7 +1236,7 @@ elements:
     - id: SettingsVideoModelShadowQualityControl
       anchor: top_left
       offset_x: 412.8
-      offset_y: 491.4486
+      offset_y: 672.6416
       width: 110.9333
       height: 23.4667
       z_index: 10
@@ -1093,7 +1255,7 @@ elements:
     - id: SettingsVideoLightGridLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 528.2446
+      offset_y: 709.4376
       width: 395.2
       height: 14.0752
       z_index: 10
@@ -1110,7 +1272,7 @@ elements:
     - id: SettingsVideoLightGridDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 544.4531
+      offset_y: 725.6461
       width: 395.2
       height: 11.5168
       z_index: 10
@@ -1127,7 +1289,7 @@ elements:
     - id: SettingsVideoLightGridControl
       anchor: top_left
       offset_x: 412.8
-      offset_y: 530.3739
+      offset_y: 711.5669
       width: 110.9333
       height: 23.4667
       z_index: 10
@@ -1146,7 +1308,7 @@ elements:
     - id: SettingsVideoColoredLightsLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 567.1699
+      offset_y: 748.3629
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1163,7 +1325,7 @@ elements:
     - id: SettingsVideoColoredLightsDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 583.3784
+      offset_y: 764.5714
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1180,7 +1342,7 @@ elements:
     - id: SettingsVideoColoredLightsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 564.9536
+      offset_y: 746.1466
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1192,7 +1354,7 @@ elements:
     - id: SettingsVideoWarmTorchLightLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 606.0952
+      offset_y: 787.2882
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1209,7 +1371,7 @@ elements:
     - id: SettingsVideoWarmTorchLightDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 622.3037
+      offset_y: 803.4967
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1226,7 +1388,7 @@ elements:
     - id: SettingsVideoWarmTorchLightControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 603.8789
+      offset_y: 785.0719
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1238,7 +1400,7 @@ elements:
     - id: SettingsVideoAmbientOcclusionLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 645.0205
+      offset_y: 826.2135
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1255,7 +1417,7 @@ elements:
     - id: SettingsVideoAmbientOcclusionDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 661.229
+      offset_y: 842.422
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1272,7 +1434,7 @@ elements:
     - id: SettingsVideoAmbientOcclusionControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 642.8042
+      offset_y: 823.9972
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1284,7 +1446,7 @@ elements:
     - id: SettingsVideoAmbientOcclusionStrengthLabel
       anchor: top_left
       offset_x: 13.6
-      offset_y: 683.9458
+      offset_y: 865.1388
       width: 370.9333
       height: 14.0752
       z_index: 10
@@ -1301,7 +1463,7 @@ elements:
     - id: SettingsVideoAmbientOcclusionStrengthDescription
       anchor: top_left
       offset_x: 13.6
-      offset_y: 683.9458
+      offset_y: 865.1388
       width: 370.9333
       height: 14.0752
       z_index: 10
@@ -1318,7 +1480,7 @@ elements:
     - id: SettingsVideoAmbientOcclusionStrengthControl
       anchor: top_left
       offset_x: 400.5333
-      offset_y: 682.9834
+      offset_y: 864.1764
       width: 88.5333
       height: 16.0
       z_index: 10
@@ -1327,7 +1489,7 @@ elements:
     - id: SettingsVideoAmbientOcclusionStrengthValue
       anchor: top_left
       offset_x: 497.0666
-      offset_y: 685.1168
+      offset_y: 866.3098
       width: 26.6667
       height: 11.7333
       z_index: 10
@@ -1344,7 +1506,7 @@ elements:
     - id: SettingsVideoTerrainDecorationsLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 739.0877
+      offset_y: 920.2807
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1361,7 +1523,7 @@ elements:
     - id: SettingsVideoTerrainDecorationsDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 755.2962
+      offset_y: 936.4892
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1378,7 +1540,7 @@ elements:
     - id: SettingsVideoTerrainDecorationsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 736.8714
+      offset_y: 918.0644
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1390,7 +1552,7 @@ elements:
     - id: SettingsVideoWeatherQualityLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 778.013
+      offset_y: 959.206
       width: 395.2
       height: 14.0752
       z_index: 10
@@ -1407,7 +1569,7 @@ elements:
     - id: SettingsVideoWeatherQualityDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 794.2215
+      offset_y: 975.4145
       width: 395.2
       height: 11.5168
       z_index: 10
@@ -1424,7 +1586,7 @@ elements:
     - id: SettingsVideoWeatherQualityControl
       anchor: top_left
       offset_x: 412.8
-      offset_y: 780.1423
+      offset_y: 961.3353
       width: 110.9333
       height: 23.4667
       z_index: 10
@@ -1443,7 +1605,7 @@ elements:
     - id: SettingsVideoWetSurfacesLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 816.9383
+      offset_y: 998.1313
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1460,7 +1622,7 @@ elements:
     - id: SettingsVideoWetSurfacesDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 833.1468
+      offset_y: 1014.3398
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1477,7 +1639,7 @@ elements:
     - id: SettingsVideoWetSurfacesControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 814.722
+      offset_y: 995.915
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1489,7 +1651,7 @@ elements:
     - id: SettingsVideoMistLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 855.8636
+      offset_y: 1037.0566
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1506,7 +1668,7 @@ elements:
     - id: SettingsVideoMistDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 872.0721
+      offset_y: 1053.2651
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1523,7 +1685,7 @@ elements:
     - id: SettingsVideoMistControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 853.6473
+      offset_y: 1034.8403
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1535,7 +1697,7 @@ elements:
     - id: SettingsVideoMistStrengthLabel
       anchor: top_left
       offset_x: 13.6
-      offset_y: 894.7889
+      offset_y: 1075.9819
       width: 370.9333
       height: 14.0752
       z_index: 10
@@ -1552,7 +1714,7 @@ elements:
     - id: SettingsVideoMistStrengthDescription
       anchor: top_left
       offset_x: 13.6
-      offset_y: 894.7889
+      offset_y: 1075.9819
       width: 370.9333
       height: 14.0752
       z_index: 10
@@ -1569,7 +1731,7 @@ elements:
     - id: SettingsVideoMistStrengthControl
       anchor: top_left
       offset_x: 400.5333
-      offset_y: 893.8265
+      offset_y: 1075.0195
       width: 88.5333
       height: 16.0
       z_index: 10
@@ -1578,7 +1740,7 @@ elements:
     - id: SettingsVideoMistStrengthValue
       anchor: top_left
       offset_x: 497.0666
-      offset_y: 895.9599
+      offset_y: 1077.1529
       width: 26.6667
       height: 11.7333
       z_index: 10
@@ -1595,7 +1757,7 @@ elements:
     - id: SettingsVideoTerrainSpecularLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 920.0641
+      offset_y: 1101.2571
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1612,7 +1774,7 @@ elements:
     - id: SettingsVideoTerrainSpecularDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 936.2726
+      offset_y: 1117.4656
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1629,7 +1791,7 @@ elements:
     - id: SettingsVideoTerrainSpecularControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 917.8478
+      offset_y: 1099.0408
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1641,7 +1803,7 @@ elements:
     - id: SettingsVideoWaterReflectionsLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 988.8561
+      offset_y: 1170.0491
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1658,7 +1820,7 @@ elements:
     - id: SettingsVideoWaterReflectionsDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1005.0646
+      offset_y: 1186.2576
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1675,7 +1837,7 @@ elements:
     - id: SettingsVideoWaterReflectionsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 986.6398
+      offset_y: 1167.8328
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1687,7 +1849,7 @@ elements:
     - id: SettingsVideoWaterReflectionSizeLabel
       anchor: top_left
       offset_x: 13.6
-      offset_y: 1027.7814
+      offset_y: 1208.9744
       width: 383.2
       height: 14.0752
       z_index: 10
@@ -1704,7 +1866,7 @@ elements:
     - id: SettingsVideoWaterReflectionSizeDescription
       anchor: top_left
       offset_x: 13.6
-      offset_y: 1043.9899
+      offset_y: 1225.1829
       width: 383.2
       height: 11.5168
       z_index: 10
@@ -1721,7 +1883,7 @@ elements:
     - id: SettingsVideoWaterReflectionSizeControl
       anchor: top_left
       offset_x: 412.8
-      offset_y: 1029.9107
+      offset_y: 1211.1037
       width: 110.9333
       height: 23.4667
       z_index: 10
@@ -1740,7 +1902,7 @@ elements:
     - id: SettingsVideoWaterSpriteReflectionsLabel
       anchor: top_left
       offset_x: 13.6
-      offset_y: 1066.7067
+      offset_y: 1247.8997
       width: 423.7333
       height: 14.0752
       z_index: 10
@@ -1757,7 +1919,7 @@ elements:
     - id: SettingsVideoWaterSpriteReflectionsDescription
       anchor: top_left
       offset_x: 13.6
-      offset_y: 1082.9152
+      offset_y: 1264.1082
       width: 423.7333
       height: 11.5168
       z_index: 10
@@ -1774,7 +1936,7 @@ elements:
     - id: SettingsVideoWaterSpriteReflectionsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1064.4904
+      offset_y: 1245.6834
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1786,7 +1948,7 @@ elements:
     - id: SettingsVideoWaterMovementRipplesLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1105.632
+      offset_y: 1286.825
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1803,7 +1965,7 @@ elements:
     - id: SettingsVideoWaterMovementRipplesDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1121.8405
+      offset_y: 1303.0335
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1820,7 +1982,7 @@ elements:
     - id: SettingsVideoWaterMovementRipplesControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1103.4157
+      offset_y: 1284.6087
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1832,7 +1994,7 @@ elements:
     - id: SettingsVideoRainRipplesLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1144.5573
+      offset_y: 1325.7503
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1849,7 +2011,7 @@ elements:
     - id: SettingsVideoRainRipplesDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1160.7658
+      offset_y: 1341.9588
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1866,7 +2028,7 @@ elements:
     - id: SettingsVideoRainRipplesControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1142.341
+      offset_y: 1323.534
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1878,7 +2040,7 @@ elements:
     - id: SettingsVideoBloomLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1213.3493
+      offset_y: 1394.5423
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -1895,7 +2057,7 @@ elements:
     - id: SettingsVideoBloomDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1229.5578
+      offset_y: 1410.7508
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -1912,7 +2074,7 @@ elements:
     - id: SettingsVideoBloomControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1211.133
+      offset_y: 1392.326
       width: 70.4
       height: 32.158
       z_index: 10
@@ -1924,7 +2086,7 @@ elements:
     - id: SettingsVideoBloomStrengthLabel
       anchor: top_left
       offset_x: 13.6
-      offset_y: 1252.2746
+      offset_y: 1433.4676
       width: 370.9333
       height: 14.0752
       z_index: 10
@@ -1941,7 +2103,7 @@ elements:
     - id: SettingsVideoBloomStrengthDescription
       anchor: top_left
       offset_x: 13.6
-      offset_y: 1252.2746
+      offset_y: 1433.4676
       width: 370.9333
       height: 14.0752
       z_index: 10
@@ -1958,7 +2120,7 @@ elements:
     - id: SettingsVideoBloomStrengthControl
       anchor: top_left
       offset_x: 400.5333
-      offset_y: 1251.3122
+      offset_y: 1432.5052
       width: 88.5333
       height: 16.0
       z_index: 10
@@ -1967,7 +2129,7 @@ elements:
     - id: SettingsVideoBloomStrengthValue
       anchor: top_left
       offset_x: 497.0666
-      offset_y: 1253.4456
+      offset_y: 1434.6386
       width: 26.6667
       height: 11.7333
       z_index: 10
@@ -1984,7 +2146,7 @@ elements:
     - id: SettingsVideoCinematicGradingLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1277.5498
+      offset_y: 1458.7428
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -2001,7 +2163,7 @@ elements:
     - id: SettingsVideoCinematicGradingDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1293.7583
+      offset_y: 1474.9513
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -2018,7 +2180,7 @@ elements:
     - id: SettingsVideoCinematicGradingControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1275.3335
+      offset_y: 1456.5265
       width: 70.4
       height: 32.158
       z_index: 10
@@ -2030,7 +2192,7 @@ elements:
     - id: SettingsVideoCinematicStrengthLabel
       anchor: top_left
       offset_x: 13.6
-      offset_y: 1316.4751
+      offset_y: 1497.6681
       width: 370.9333
       height: 14.0752
       z_index: 10
@@ -2047,7 +2209,7 @@ elements:
     - id: SettingsVideoCinematicStrengthDescription
       anchor: top_left
       offset_x: 13.6
-      offset_y: 1316.4751
+      offset_y: 1497.6681
       width: 370.9333
       height: 14.0752
       z_index: 10
@@ -2064,7 +2226,7 @@ elements:
     - id: SettingsVideoCinematicStrengthControl
       anchor: top_left
       offset_x: 400.5333
-      offset_y: 1315.5127
+      offset_y: 1496.7057
       width: 88.5333
       height: 16.0
       z_index: 10
@@ -2073,7 +2235,7 @@ elements:
     - id: SettingsVideoCinematicStrengthValue
       anchor: top_left
       offset_x: 497.0666
-      offset_y: 1317.6461
+      offset_y: 1498.8391
       width: 26.6667
       height: 11.7333
       z_index: 10
@@ -2090,7 +2252,7 @@ elements:
     - id: SettingsVideoSharpeningLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1341.7503
+      offset_y: 1522.9433
       width: 382.9333
       height: 14.0752
       z_index: 10
@@ -2107,7 +2269,7 @@ elements:
     - id: SettingsVideoSharpeningDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1357.9588
+      offset_y: 1539.1518
       width: 382.9333
       height: 11.5168
       z_index: 10
@@ -2124,7 +2286,7 @@ elements:
     - id: SettingsVideoSharpeningControl
       anchor: top_left
       offset_x: 400.5333
-      offset_y: 1347.613
+      offset_y: 1528.806
       width: 88.5333
       height: 16.0
       z_index: 10
@@ -2133,7 +2295,7 @@ elements:
     - id: SettingsVideoSharpeningValue
       anchor: top_left
       offset_x: 497.0666
-      offset_y: 1349.7463
+      offset_y: 1530.9393
       width: 26.6667
       height: 11.7333
       z_index: 10
@@ -2150,7 +2312,7 @@ elements:
     - id: SettingsVideoMeleeHitEffectsLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1410.5423
+      offset_y: 1591.7353
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -2167,7 +2329,7 @@ elements:
     - id: SettingsVideoMeleeHitEffectsDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1426.7508
+      offset_y: 1607.9438
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -2184,7 +2346,7 @@ elements:
     - id: SettingsVideoMeleeHitEffectsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1408.326
+      offset_y: 1589.519
       width: 70.4
       height: 32.158
       z_index: 10
@@ -2196,7 +2358,7 @@ elements:
     - id: SettingsVideoMeleeHitFlashLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1449.4676
+      offset_y: 1630.6606
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -2213,7 +2375,7 @@ elements:
     - id: SettingsVideoMeleeHitFlashDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1465.6761
+      offset_y: 1646.8691
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -2230,7 +2392,7 @@ elements:
     - id: SettingsVideoMeleeHitFlashControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1447.2513
+      offset_y: 1628.4443
       width: 70.4
       height: 32.158
       z_index: 10
@@ -2242,7 +2404,7 @@ elements:
     - id: SettingsVideoMeleeHitBloodEffectsLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1488.3929
+      offset_y: 1669.5859
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -2259,7 +2421,7 @@ elements:
     - id: SettingsVideoMeleeHitBloodEffectsDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1504.6014
+      offset_y: 1685.7944
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -2276,7 +2438,7 @@ elements:
     - id: SettingsVideoMeleeHitBloodEffectsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1486.1766
+      offset_y: 1667.3696
       width: 70.4
       height: 32.158
       z_index: 10
@@ -2288,7 +2450,7 @@ elements:
     - id: SettingsVideoBloodSplatsLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1527.3182
+      offset_y: 1708.5112
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -2305,7 +2467,7 @@ elements:
     - id: SettingsVideoBloodSplatsDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1543.5267
+      offset_y: 1724.7197
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -2322,7 +2484,7 @@ elements:
     - id: SettingsVideoBloodSplatsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1525.1019
+      offset_y: 1706.2949
       width: 70.4
       height: 32.158
       z_index: 10
@@ -2334,7 +2496,7 @@ elements:
     - id: SettingsVideoSurfaceMaterialsLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1596.1102
+      offset_y: 1777.3032
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -2351,7 +2513,7 @@ elements:
     - id: SettingsVideoSurfaceMaterialsDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1612.3187
+      offset_y: 1793.5117
       width: 435.7333
       height: 23.0336
       z_index: 10
@@ -2368,7 +2530,7 @@ elements:
     - id: SettingsVideoSurfaceMaterialsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1599.6523
+      offset_y: 1780.8453
       width: 70.4
       height: 32.158
       z_index: 10
@@ -2380,7 +2542,7 @@ elements:
     - id: SettingsVideoSurfaceParallaxLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1646.5523
+      offset_y: 1827.7453
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -2397,7 +2559,7 @@ elements:
     - id: SettingsVideoSurfaceParallaxDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1662.7608
+      offset_y: 1843.9538
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -2414,7 +2576,7 @@ elements:
     - id: SettingsVideoSurfaceParallaxControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1644.336
+      offset_y: 1825.529
       width: 70.4
       height: 32.158
       z_index: 10
@@ -2426,7 +2588,7 @@ elements:
     - id: SettingsVideoSurfaceReflectionsLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1685.4776
+      offset_y: 1866.6706
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -2443,7 +2605,7 @@ elements:
     - id: SettingsVideoSurfaceReflectionsDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 1701.6861
+      offset_y: 1882.8791
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -2460,7 +2622,7 @@ elements:
     - id: SettingsVideoSurfaceReflectionsControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 1683.2613
+      offset_y: 1864.4543
       width: 70.4
       height: 32.158
       z_index: 10

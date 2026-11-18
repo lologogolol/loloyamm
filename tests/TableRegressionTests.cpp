@@ -1018,6 +1018,63 @@ TEST_CASE("directional atlas palette stems retain a trailing zero before the vie
     }
 }
 
+TEST_CASE("original sprite textures replace enhanced atlas variants with native names")
+{
+    using namespace OpenYAMM::Game;
+    const std::string yaml =
+        "sprites:\n"
+        "  - sprite_id: 1\n"
+        "    sprite_name: arc1sta\n"
+        "    frames:\n"
+        "      - texture_name: atlas:mm6_arc1/arc1sta\n"
+        "        frame_length_raw: 1\n"
+        "        flags: [Mirror5, Mirror6, Mirror7]\n"
+        "  - sprite_id: 2\n"
+        "    sprite_name: ttn3ata0\n"
+        "    frames:\n"
+        "      - texture_name: atlas:mm6_ttn1/ttn1ata__palette_8300\n"
+        "        frame_length_raw: 1\n"
+        "        flags: [Image1]\n"
+        "        palette_id: 830\n"
+        "  - sprite_id: 3\n"
+        "    sprite_name: arc1fia\n"
+        "    frames:\n"
+        "      - texture_name: atlas:mm6_arc1/arc1fia0__fidget_0\n"
+        "        frame_length_raw: 1\n"
+        "        flags: [Image1]\n";
+    SpriteFrameTable table;
+    std::string error;
+    REQUIRE(table.loadFromYaml(yaml, error));
+    table.useOriginalTextureNames();
+
+    REQUIRE(table.getFrame(1, 0) != nullptr);
+    CHECK_EQ(SpriteFrameTable::resolveTexture(*table.getFrame(1, 0), 3).textureName, "arc1sta3");
+    REQUIRE(table.getFrame(2, 0) != nullptr);
+    CHECK_EQ(SpriteFrameTable::resolveTexture(*table.getFrame(2, 0), 0).textureName, "ttn1ata0");
+    REQUIRE(table.getFrame(3, 0) != nullptr);
+    CHECK_EQ(SpriteFrameTable::resolveTexture(*table.getFrame(3, 0), 0).textureName, "arc1fia0");
+}
+
+TEST_CASE("original sprite texture choice applies to families appended later")
+{
+    using namespace OpenYAMM::Game;
+    SpriteFrameTable table;
+    table.useOriginalTextureNames();
+    std::string error;
+    REQUIRE(table.loadFromYaml(
+        "sprites:\n"
+        "  - sprite_id: 7\n"
+        "    sprite_name: later\n"
+        "    frames:\n"
+        "      - texture_name: atlas:mm6_arc1/arc1fia0__fidget_0\n"
+        "        frame_length_raw: 1\n"
+        "        flags: [Image1]\n",
+        error,
+        true));
+    REQUIRE(table.getFrame(7, 0) != nullptr);
+    CHECK_EQ(table.getFrame(7, 0)->textureName, "arc1fia0");
+}
+
 TEST_CASE("roster join offer mapping samples")
 {
     const OpenYAMM::Tests::RegressionGameData &gameData = requireRegressionGameData();

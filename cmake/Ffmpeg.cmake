@@ -6,6 +6,7 @@ function(openyamm_configure_ffmpeg)
     endif()
 
     find_program(OPENYAMM_FFMPEG_MAKE_PROGRAM make REQUIRED)
+    find_program(OPENYAMM_FFMPEG_BASH_PROGRAM bash REQUIRED)
 
     if (NOT DEFINED OPENYAMM_FFMPEG_SOURCE_DIR OR OPENYAMM_FFMPEG_SOURCE_DIR STREQUAL "")
         # The checkout may live outside the build tree (FETCHCONTENT_SOURCE_DIR_FFMPEG).
@@ -145,6 +146,28 @@ function(openyamm_configure_ffmpeg)
 
     file(MAKE_DIRECTORY "${OPENYAMM_FFMPEG_BUILD_DIR}")
 
+    set(openyammFfmpegNormalizeCommand)
+    set(openyammFfmpegMakeCommands
+        COMMAND "${OPENYAMM_FFMPEG_MAKE_PROGRAM}" -j4
+        COMMAND "${OPENYAMM_FFMPEG_MAKE_PROGRAM}" install)
+    if (WIN32 AND NOT CMAKE_CROSSCOMPILING)
+        list(APPEND openyammFfmpegNormalizeCommand
+            COMMAND "${CMAKE_COMMAND}"
+                "-DOPENYAMM_FFMPEG_NORMALIZE_SOURCE=${OPENYAMM_FFMPEG_SOURCE_DIR}"
+                "-DOPENYAMM_FFMPEG_NORMALIZE_BUILD=${OPENYAMM_FFMPEG_BUILD_DIR}"
+                -P "${CMAKE_SOURCE_DIR}/cmake/NormalizeFfmpegMsysPaths.cmake")
+        # Native mingw32-make otherwise runs FFmpeg's POSIX recipes through cmd.exe, where utilities such as printf,
+        # awk and mkdir are unavailable. A login Bash also supplies its Unix utility path while retaining MinGW's
+        # compiler path from the calling environment.
+        file(TO_CMAKE_PATH "${OPENYAMM_FFMPEG_MAKE_PROGRAM}" openyammFfmpegWindowsMake)
+        set(openyammFfmpegMakeCommands
+            COMMAND "${OPENYAMM_FFMPEG_BASH_PROGRAM}" -lc "\"${openyammFfmpegWindowsMake}\" -j4"
+            # FFmpeg's quiet INSTALL status prefix repeats its long libavutil header list on the same command line. It
+            # exceeds Windows' command-line limit and truncates the destination; V=1 omits that prefix. Keep install
+            # serial as well because every library writes through the same include and pkg-config directories.
+            COMMAND "${OPENYAMM_FFMPEG_BASH_PROGRAM}" -lc "\"${openyammFfmpegWindowsMake}\" -j1 V=1 install")
+    endif()
+
     add_custom_command(
         OUTPUT
             "${OPENYAMM_FFMPEG_LIBAVFORMAT}"
@@ -152,14 +175,15 @@ function(openyamm_configure_ffmpeg)
             "${OPENYAMM_FFMPEG_LIBSWRESAMPLE}"
             "${OPENYAMM_FFMPEG_LIBSWSCALE}"
             "${OPENYAMM_FFMPEG_LIBAVUTIL}"
-        COMMAND bash "${OPENYAMM_FFMPEG_SOURCE_DIR}/configure"
+        COMMAND "${OPENYAMM_FFMPEG_BASH_PROGRAM}" "${OPENYAMM_FFMPEG_SOURCE_DIR}/configure"
             ${openyammFfmpegConfigureArgs}
-        COMMAND ${OPENYAMM_FFMPEG_MAKE_PROGRAM} -j4
-        COMMAND ${OPENYAMM_FFMPEG_MAKE_PROGRAM} install
+        ${openyammFfmpegNormalizeCommand}
+        ${openyammFfmpegMakeCommands}
         WORKING_DIRECTORY "${OPENYAMM_FFMPEG_BUILD_DIR}"
         DEPENDS
             "${OPENYAMM_FFMPEG_SOURCE_DIR}/configure"
             "${CMAKE_CURRENT_FUNCTION_LIST_FILE}"
+            "${CMAKE_SOURCE_DIR}/cmake/NormalizeFfmpegMsysPaths.cmake"
         COMMENT "Building bundled FFmpeg static libraries for house video playback"
         VERBATIM
     )
@@ -174,6 +198,8 @@ function(openyamm_configure_ffmpeg)
     )
 
     set(OPENYAMM_FFMPEG_INCLUDE_DIR "${OPENYAMM_FFMPEG_INCLUDE_DIR}" PARENT_SCOPE)
+    set(OPENYAMM_FFMPEG_SOURCE_DIR "${OPENYAMM_FFMPEG_SOURCE_DIR}" PARENT_SCOPE)
+    set(OPENYAMM_FFMPEG_BUILD_DIR "${OPENYAMM_FFMPEG_BUILD_DIR}" PARENT_SCOPE)
     set(OPENYAMM_FFMPEG_LIBAVFORMAT "${OPENYAMM_FFMPEG_LIBAVFORMAT}" PARENT_SCOPE)
     set(OPENYAMM_FFMPEG_LIBAVCODEC "${OPENYAMM_FFMPEG_LIBAVCODEC}" PARENT_SCOPE)
     set(OPENYAMM_FFMPEG_LIBSWRESAMPLE "${OPENYAMM_FFMPEG_LIBSWRESAMPLE}" PARENT_SCOPE)
@@ -185,6 +211,10 @@ function(openyamm_target_link_ffmpeg targetName)
     target_include_directories(${targetName}
         PRIVATE
             "${OPENYAMM_FFMPEG_INCLUDE_DIR}"
+            # Native Windows installs can omit libavutil's public headers; these two roots contain the same source
+            # headers and configure-generated avconfig.h used to build the static libraries.
+            "${OPENYAMM_FFMPEG_BUILD_DIR}"
+            "${OPENYAMM_FFMPEG_SOURCE_DIR}"
     )
 
     target_link_libraries(${targetName}

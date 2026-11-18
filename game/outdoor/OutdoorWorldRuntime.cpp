@@ -6925,7 +6925,11 @@ void OutdoorWorldRuntime::applyFireSpikeTrapTriggerResult(
                 trap.x,
                 trap.y,
                 trap.z,
-                ShieldAttackTier::Spell);
+                ShieldAttackTier::Spell,
+                {},
+                false,
+                true,
+                damageType);
 
             if (m_pGameplayCombatController != nullptr)
             {
@@ -8826,8 +8830,8 @@ void OutdoorWorldRuntime::updateImmolation(float deltaSeconds)
         }
 
         const int beforeHp = actor.currentHp;
-        const bool applied =
-            applyPartyAttackToMapActor(actorIndex, appliedDamage, partyX, partyY, partyZ, ShieldAttackTier::Spell);
+        const bool applied = applyPartyAttackToMapActor(actorIndex, appliedDamage, partyX, partyY, partyZ,
+            ShieldAttackTier::Spell, {}, false, true, damageType);
 
         if (applied && m_pGameplayCombatController != nullptr)
         {
@@ -15882,7 +15886,8 @@ void OutdoorWorldRuntime::applyProjectileFrameResult(
                     GameplayProjectileService::partyShieldModifiers(projectile, m_pParty),
                     projectile.critical,
                     // An arrow's Chaining Arrows leap (it struck a monster before) makes no flinch.
-                    projectile.chainStruckActorIds.empty()))
+                    projectile.chainStruckActorIds.empty(),
+                    projectile.damageType))
             {
                 appliedDamage = 0;
             }
@@ -16087,7 +16092,8 @@ void OutdoorWorldRuntime::applyProjectileFrameResult(
                         GameplayProjectileService::projectileShieldTier(projectile),
                         GameplayProjectileService::partyShieldModifiers(projectile, m_pParty),
                         projectile.critical,
-                        projectile.chainStruckActorIds.empty()))
+                        projectile.chainStruckActorIds.empty(),
+                        projectile.damageType))
                 {
                     appliedDamage = 0;
                 }
@@ -16877,6 +16883,12 @@ bool OutdoorWorldRuntime::actorRuntimeState(size_t actorIndex, GameplayRuntimeAc
     state.actionSeconds = pActor->actionSeconds;
     state.velocityX = pActor->velocityX;
     state.velocityY = pActor->velocityY;
+    state.velocityZ = pActor->velocityZ;
+    state.deathImpulseX = pActor->deathImpulseX;
+    state.deathImpulseY = pActor->deathImpulseY;
+    state.deathImpulseZ = pActor->deathImpulseZ;
+    state.deathImpactDamage = pActor->deathImpactDamage;
+    state.deathImpactDamageType = pActor->deathImpactDamageType;
     state.intendedSpeed = pActor->intendedSpeed;
     state.hurrying = pActor->aiState == ActorAiState::Pursuing || pActor->aiState == ActorAiState::Fleeing;
     state.castingSpell = pActor->queuedAttackAbility == MonsterAttackAbility::Spell1
@@ -19139,7 +19151,8 @@ bool OutdoorWorldRuntime::applyPartyAttackToMapActor(
     ShieldAttackTier shieldTier,
     const ShieldHitModifiers &shieldModifiers,
     bool critical,
-    bool hitReaction)
+    bool hitReaction,
+    CombatDamageType damageType)
 {
     if (actorIndex >= m_mapActors.size() || damage <= 0)
     {
@@ -19263,6 +19276,11 @@ bool OutdoorWorldRuntime::applyPartyAttackToMapActor(
         actor.velocityX = knockback.x;
         actor.velocityY = knockback.y;
         actor.velocityZ = knockback.z;
+        actor.deathImpulseX = knockback.x;
+        actor.deathImpulseY = knockback.y;
+        actor.deathImpulseZ = knockback.z;
+        actor.deathImpactDamage = damage;
+        actor.deathImpactDamageType = damageType;
 
         if (m_pMonsterTable != nullptr)
         {
@@ -19432,8 +19450,15 @@ void OutdoorWorldRuntime::applyPartyAttackMeleeEffects(
     const CharacterAttackResult &attack,
     const GameplayWorldPoint &source)
 {
-    if (actorIndex >= m_mapActors.size()
-        || (!attack.stunTarget
+    if (actorIndex >= m_mapActors.size())
+    {
+        return;
+    }
+    // The damage call precedes effects and uses the interface's physical fallback; retain the actual weapon/enchant
+    // type for a killing blow even though a dead actor no longer receives status effects below.
+    m_mapActors[actorIndex].deathImpactDamageType = attack.damageType;
+
+    if ((!attack.stunTarget
             && !attack.paralyzeTarget
             && !attack.fearTarget
             && !attack.enrageTarget
@@ -19772,7 +19797,9 @@ bool OutdoorWorldRuntime::applyDirectSpellImpactToMapActor(
     const bool applied = applyPartyAttackToMapActor(actorIndex, appliedDamage, partyX, partyY, partyZ,
         ShieldAttackTier::Spell,
         pCaster != nullptr ? GameMechanics::spellShieldModifiers(*pCaster) : ShieldHitModifiers{},
-        critical);
+        critical,
+        true,
+        damageType);
 
     if (applied && m_pGameplayCombatController != nullptr)
     {
@@ -23977,8 +24004,9 @@ void OutdoorWorldRuntime::resolveArmageddonDetonation(float partyX, float partyY
 
         const int beforeHp = actor.currentHp;
         const int monsterDamage = armageddonMonsterDamage(m_armageddonState, m_pParty, m_pSpellTable);
-        const bool applied = applyPartyAttackToMapActor(
-            actorIndex, monsterDamage, partyX, partyY, partyZ, ShieldAttackTier::Spell);
+        const bool applied = applyPartyAttackToMapActor(actorIndex, monsterDamage, partyX, partyY, partyZ,
+            ShieldAttackTier::Spell, {}, false, true, GameMechanics::spellCombatDamageType(
+                spellIdValue(SpellId::Armageddon), m_pSpellTable));
 
         if (!applied)
         {

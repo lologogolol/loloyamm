@@ -351,7 +351,8 @@ void MainMenuScreen::loadCatalog()
                 {
                     m_bindings.push_back({definition.action, id, Engine::localize(item["name"].as<std::string>()),
                                           Engine::localize(item["group"].as<std::string>()),
-                                          item["context"].as<std::string>("")});
+                                          item["context"].as<std::string>(""),
+                                          item["keyboard"].as<bool>(true), item["gamepad"].as<bool>(true)});
                 }
                 found = true;
             }
@@ -820,7 +821,12 @@ size_t MainMenuScreen::dirtyCount() const
     }
     for (const Binding &binding : m_bindings)
     {
-        if (!sameMenuBinding(m_draft.keyboard.binding(binding.action), m_committed.keyboard.binding(binding.action)))
+        if ((binding.keyboard
+                && !sameMenuBinding(
+                    m_draft.keyboard.binding(binding.action), m_committed.keyboard.binding(binding.action)))
+            || (binding.gamepad
+                && !sameMenuGamepadBinding(
+                    m_draft.gamepad.binding(binding.action), m_committed.gamepad.binding(binding.action))))
         {
             ++count;
         }
@@ -980,7 +986,7 @@ void MainMenuScreen::restoreDefaults()
 {
     confirm(Engine::tr("Restore Defaults?"),
             m_section == "controls"
-                ? Engine::tr("Restore mouse controls, the control preset and its keyboard bindings?")
+                ? Engine::tr("Restore mouse controls, the control preset and all input bindings?")
                 : Engine::tr("Restore the current Settings section to its defaults?"),
             {Engine::tr("Cancel"), Engine::tr("Restore")},
             [this](int choice)
@@ -1011,7 +1017,9 @@ void MainMenuScreen::restoreDefaults()
                 if (m_section == "keyboard")
                 {
                     m_draft.keyboard.restoreDefaults(m_draft.controlScheme);
+                    m_draft.gamepad.restoreDefaults();
                     restoredKeys.push_back("input.");
+                    restoredKeys.push_back("gamepad.");
                 }
                 else
                 {
@@ -1026,7 +1034,9 @@ void MainMenuScreen::restoreDefaults()
                     if (m_section == "controls")
                     {
                         m_draft.keyboard.restoreDefaults(m_draft.controlScheme);
+                        m_draft.gamepad.restoreDefaults();
                         restoredKeys.push_back("input.");
+                        restoredKeys.push_back("gamepad.");
                     }
                     if (m_section == "video")
                     {
@@ -1167,9 +1177,64 @@ void MainMenuScreen::chooseSetting(const Setting &setting)
     }
 }
 
+void MainMenuScreen::requestSettingFolder(const Setting &setting)
+{
+    if (m_folderPick != nullptr)
+    {
+        return;
+    }
+    m_folderPick = std::make_shared<FolderPick>();
+    m_folderPickSettingId = setting.id;
+    const std::string current = settingValue(setting);
+    SDL_ShowOpenFolderDialog(
+        [](void *pUserData, const char *const *pFileList, int)
+        {
+            std::unique_ptr<std::shared_ptr<FolderPick>> pPick(
+                static_cast<std::shared_ptr<FolderPick> *>(pUserData));
+            std::lock_guard lock((*pPick)->mutex);
+            if (pFileList != nullptr && pFileList[0] != nullptr)
+            {
+                (*pPick)->folder = std::filesystem::path(pFileList[0]);
+            }
+            (*pPick)->finished = true;
+        },
+        new std::shared_ptr<FolderPick>(m_folderPick), nullptr, current.empty() ? nullptr : current.c_str(), false);
+}
+
+void MainMenuScreen::finishSettingFolderPick()
+{
+    if (m_folderPick == nullptr)
+    {
+        return;
+    }
+    std::optional<std::filesystem::path> folder;
+    {
+        std::lock_guard lock(m_folderPick->mutex);
+        if (!m_folderPick->finished)
+        {
+            return;
+        }
+        folder = m_folderPick->folder;
+    }
+    if (folder)
+    {
+        const auto setting = std::find_if(m_settings.begin(), m_settings.end(), [this](const Setting &entry)
+        {
+            return entry.id == m_folderPickSettingId;
+        });
+        if (setting != m_settings.end())
+        {
+            editSetting(*setting, folder->string());
+        }
+    }
+    m_folderPick.reset();
+    m_folderPickSettingId.clear();
+}
+
 void MainMenuScreen::drawSettings(float deltaSeconds)
 {
     loadCatalog();
+    finishSettingFolderPick();
     const std::string prefix = "Settings" + capitalized(m_section);
     loadDesign("gameplay/settings_" + m_section);
     beginDesign(prefix);
@@ -1322,6 +1387,13 @@ void MainMenuScreen::drawSettings(float deltaSeconds)
                 chooseSetting(setting);
             }
         }
+        else if (setting.type == "path")
+        {
+            if (selectBox(id, rect, value, enabled && m_folderPick == nullptr))
+            {
+                requestSettingFolder(setting);
+            }
+        }
         else if (setting.type == "window")
         {
             // The loot filter: its preset, and a window with the rest.
@@ -1424,7 +1496,7 @@ void MainMenuScreen::drawSettings(float deltaSeconds)
     {
         Rect rect = designRect(prefix + "KeyboardButton");
         rect.y -= m_scroll * designScale();
-        if (button("configure-keyboard", rect, Engine::tr("Configure Keyboard"), "button_small"))
+        if (button("configure-keyboard", rect, Engine::tr("Configure Bindings"), "button_small"))
         {
             m_section = "keyboard";
             m_scroll = 0;
@@ -1506,7 +1578,11 @@ void MainMenuScreen::drawKeyboard(const std::string &prefix, const Rect &viewpor
     std::vector<const Binding *> filtered;
     for (const Binding &binding : m_bindings)
     {
-        const std::string key = inputBindingDisplayName(m_draft.keyboard.binding(binding.action));
+        const std::string key = (binding.keyboard
+                ? inputBindingDisplayName(m_draft.keyboard.binding(binding.action)) : std::string())
+            + " "
+            + (binding.gamepad
+                ? gamepadBindingDisplayName(m_draft.gamepad.binding(binding.action)) : std::string());
         if ((m_bindingGroup == Engine::tr("All actions") || m_bindingGroup == binding.group) &&
             lower(binding.name + " " + binding.group + " " + key).find(lower(m_search)) != std::string::npos)
         {
@@ -1516,34 +1592,50 @@ void MainMenuScreen::drawKeyboard(const std::string &prefix, const Rect &viewpor
     // The group filter holds the shown group name, as the catalogue's groups are translated when loaded.
     const bool fixed =
         (m_bindingGroup == Engine::tr("All actions") || m_bindingGroup == Engine::tr("System")) && m_search.empty();
-    const float contentHeight = std::ceil(filtered.size() / 2.0f) * 30 + (fixed ? 85 : 0);
+    const float contentHeight = 18 + std::ceil(filtered.size() / 2.0f) * 30 + (fixed ? 85 : 0);
     scrollViewport(viewport, contentHeight, m_scroll);
-    if (m_capture && mouseWheelDelta() != 0.0f)
+    if (m_capture && m_captureDevice == BindingDevice::Keyboard && mouseWheelDelta() != 0.0f)
     {
         acceptBinding(mouseWheelInputBinding(mouseWheelDelta()));
     }
     setDesignClip(viewport);
     const float scale = designScale();
+    const float columnWidth = (viewport.width - 12 * scale) / 2;
+    textInRect({viewport.x + columnWidth - 140 * scale, viewport.y - m_scroll * scale,
+                   66 * scale, 16 * scale},
+        "Keyboard", "menu_lucida", 8.5f, 0xff99aaa0u, true);
+    textInRect({viewport.x + columnWidth - 70 * scale, viewport.y - m_scroll * scale,
+                   66 * scale, 16 * scale},
+        "Gamepad", "menu_lucida", 8.5f, 0xff99aaa0u, true);
     for (size_t i = 0; i < filtered.size(); ++i)
     {
         const Binding &binding = *filtered[i];
-        const float width = (viewport.width - 12 * scale) / 2;
+        const float width = columnWidth;
         const Rect rect{viewport.x + float(i % 2) * (width + 10 * scale),
-                        viewport.y + (float(i / 2) * 30 - m_scroll) * scale, width, 29 * scale};
-        textInRect({rect.x + 5 * scale, rect.y, width - 76 * scale, 18 * scale}, binding.name, "menu_arrus", 12.8f);
-        textInRect({rect.x + 5 * scale, rect.y + 17 * scale, width - 76 * scale, 10 * scale}, binding.group,
+                        viewport.y + (18 + float(i / 2) * 30 - m_scroll) * scale, width, 29 * scale};
+        textInRect({rect.x + 5 * scale, rect.y, width - 146 * scale, 18 * scale}, binding.name, "menu_arrus", 12.8f);
+        textInRect({rect.x + 5 * scale, rect.y + 17 * scale, width - 146 * scale, 10 * scale}, binding.group,
                    "menu_lucida", 7.68f, 0xff99aaa0u);
-        const Rect keyRect{rect.x + width - 66 * scale, rect.y + 3 * scale, 64 * scale, 23 * scale};
-        if (button("binding-" + binding.id, keyRect, "", "keycap"))
+        const Rect keyRect{rect.x + width - 138 * scale, rect.y + 3 * scale, 66 * scale, 23 * scale};
+        const Rect padRect{rect.x + width - 68 * scale, rect.y + 3 * scale, 66 * scale, 23 * scale};
+        if (binding.keyboard && button("binding-key-" + binding.id, keyRect, "", "keycap"))
         {
-            captureBinding(binding.action);
+            captureBinding(binding.action, BindingDevice::Keyboard);
         }
-        textInRect(keyRect, inputBindingDisplayName(m_draft.keyboard.binding(binding.action)), "menu_lucida", 10.88f,
-                   0xffc6dfeau, true);
+        if (binding.gamepad && button("binding-pad-" + binding.id, padRect, "", "keycap"))
+        {
+            captureBinding(binding.action, BindingDevice::Gamepad);
+        }
+        textInRect(keyRect, binding.keyboard
+                ? inputBindingDisplayName(m_draft.keyboard.binding(binding.action)) : "-",
+            "menu_lucida", 9.6f, binding.keyboard ? 0xffc6dfeau : 0xff68746fu, true);
+        textInRect(padRect, binding.gamepad
+                ? gamepadBindingDisplayName(m_draft.gamepad.binding(binding.action)) : "-",
+            "menu_lucida", 9.6f, binding.gamepad ? 0xffc6dfeau : 0xff68746fu, true);
     }
     if (fixed)
     {
-        const float y = viewport.y + (std::ceil(filtered.size() / 2.0f) * 30 + 8 - m_scroll) * scale;
+        const float y = viewport.y + (18 + std::ceil(filtered.size() / 2.0f) * 30 + 8 - m_scroll) * scale;
         textInRect({viewport.x + 5 * scale, y, viewport.width, 24 * scale}, Engine::tr("Fixed shortcuts"), "fondamento",
                    14);
         textInRect({viewport.x + 5 * scale, y + 25 * scale, viewport.width, 50 * scale},
@@ -1558,26 +1650,39 @@ void MainMenuScreen::drawKeyboard(const std::string &prefix, const Rect &viewpor
     setDesignClip(std::nullopt);
 }
 
-void MainMenuScreen::captureBinding(KeyboardAction action)
+void MainMenuScreen::captureBinding(KeyboardAction action, BindingDevice device)
 {
     m_searchEditing = false;
     setTextEditing(false);
     m_capture = action;
+    m_captureDevice = device;
     m_captureModifier.reset();
-    confirm(Engine::tr("Assign Key"),
-            Engine::tr("{action}\nPress a key, mouse button, or scroll the wheel.",
-                       {{"action", Engine::tr(keyboardBindingDefinition(action).label)}}),
-            {Engine::tr("Cancel"), Engine::tr("Clear"), Engine::tr("Left Mouse")},
-            [this, action](int choice)
+    const bool gamepad = device == BindingDevice::Gamepad;
+    confirm(gamepad ? Engine::tr("Assign Gamepad Button") : Engine::tr("Assign Key"),
+            gamepad
+                ? Engine::tr("{action}\nPress a gamepad button or trigger.",
+                             {{"action", Engine::tr(keyboardBindingDefinition(action).label)}})
+                : Engine::tr("{action}\nPress a key, mouse button, or scroll the wheel.",
+                             {{"action", Engine::tr(keyboardBindingDefinition(action).label)}}),
+            gamepad ? std::vector<std::string>{Engine::tr("Cancel"), Engine::tr("Clear")}
+                    : std::vector<std::string>{Engine::tr("Cancel"), Engine::tr("Clear"), Engine::tr("Left Mouse")},
+            [this, action, gamepad](int choice)
             {
-                if (choice == 2)
+                if (!gamepad && choice == 2)
                 {
                     acceptBinding(mouseButtonInputBinding(SDL_BUTTON_LEFT));
                     return;
                 }
                 if (choice == 1)
                 {
-                    m_draft.keyboard.setBinding(action, InputBinding{});
+                    if (gamepad)
+                    {
+                        m_draft.gamepad.setBinding(action, GamepadBinding{});
+                    }
+                    else
+                    {
+                        m_draft.keyboard.setBinding(action, InputBinding{});
+                    }
                 }
                 m_capture.reset();
             });
@@ -1631,10 +1736,80 @@ void MainMenuScreen::acceptBinding(InputBinding binding)
     }
 }
 
+void MainMenuScreen::acceptGamepadBinding(GamepadBinding binding)
+{
+    if (!m_capture || m_captureDevice != BindingDevice::Gamepad)
+    {
+        return;
+    }
+    const KeyboardAction target = *m_capture;
+    const auto targetBinding = std::find_if(m_bindings.begin(), m_bindings.end(),
+        [target](const Binding &candidate) { return candidate.action == target; });
+    const std::string context = targetBinding != m_bindings.end() ? targetBinding->context : "";
+    std::optional<KeyboardAction> conflict;
+    for (const Binding &candidate : m_bindings)
+    {
+        if (candidate.gamepad && candidate.action != target && candidate.context == context
+            && sameMenuGamepadBinding(m_draft.gamepad.binding(candidate.action), binding))
+        {
+            conflict = candidate.action;
+        }
+    }
+    m_capture.reset();
+    closeConfirmation();
+    if (conflict)
+    {
+        confirm("Gamepad Button Already Assigned",
+            gamepadBindingDisplayName(binding) + " is assigned to "
+                + std::string(keyboardBindingDefinition(*conflict).label) + ". Swap the two actions?",
+            {"Cancel", "Swap"},
+            [this, target, binding, conflict](int choice)
+            {
+                if (choice == 1)
+                {
+                    m_draft.gamepad.setBinding(*conflict, m_draft.gamepad.binding(target));
+                    m_draft.gamepad.setBinding(target, binding);
+                }
+            });
+    }
+    else
+    {
+        m_draft.gamepad.setBinding(target, binding);
+    }
+}
+
+bool MainMenuScreen::capturesGamepadInput() const
+{
+    return m_capture.has_value() && m_captureDevice == BindingDevice::Gamepad;
+}
+
 void MainMenuScreen::handleSdlEvent(const SDL_Event &event)
 {
     if (m_capture)
     {
+        if (m_captureDevice == BindingDevice::Gamepad)
+        {
+            if (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN)
+            {
+                acceptGamepadBinding(gamepadButtonInputBinding(
+                    static_cast<SDL_GamepadButton>(event.gbutton.button)));
+            }
+            else if (event.type == SDL_EVENT_GAMEPAD_AXIS_MOTION
+                && event.gaxis.value > 16000
+                && (event.gaxis.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER
+                    || event.gaxis.axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER))
+            {
+                acceptGamepadBinding(gamepadTriggerInputBinding(
+                    static_cast<SDL_GamepadAxis>(event.gaxis.axis)));
+            }
+            else if (event.type == SDL_EVENT_KEY_DOWN && event.key.scancode == SDL_SCANCODE_ESCAPE)
+            {
+                m_capture.reset();
+                closeConfirmation();
+                m_suppressEscape = true;
+            }
+            return;
+        }
         if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat)
         {
             if (event.key.scancode == SDL_SCANCODE_ESCAPE)

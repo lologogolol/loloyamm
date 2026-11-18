@@ -161,6 +161,17 @@ private:
     // The player's language packs at languages/, and the active pack's fonts, sounds, voices and videos in front of
     // the game's (devdocs/LOCALIZATION.md). A pack replaces nothing else.
     bool mountLanguagePack(bool packagedRoot);
+    // The selected purchased world's requested decoded categories, mounted above supplied content and below mods.
+    bool mountOriginalVisuals(
+        const std::filesystem::path &root,
+        const std::string &activeWorldId,
+        bool classicEnvironmentGraphics,
+        bool classicActorGraphics);
+    // The active purchased game's original numbered MP3 tracks, mounted at Music/ below language packs and mods.
+    bool mountClassicMusic(
+        const std::filesystem::path &gamesRoot,
+        const std::string &activeWorldId,
+        bool enabled);
     // Mounts the content packs of an index: the active world's in front, then the engine's and the other worlds'.
     bool mountContentPacks(
         const AssetPackIndex &index,

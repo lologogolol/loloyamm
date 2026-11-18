@@ -839,6 +839,33 @@ TEST_CASE("ModelAnimation recycled instances drop the previous model's node rota
     CHECK((*instances.nodeMatrix(replacement, "child"))[13] == doctest::Approx(0.0f));
 }
 
+TEST_CASE("ModelAnimation world node transforms drive descendants and clear back to animation")
+{
+    using namespace OpenYAMM::Engine;
+    const std::shared_ptr<ModelAsset> asset = makeAnimatedAsset();
+    ModelInstanceSystem instances;
+    const ModelInstanceHandle handle = instances.create(asset);
+    ModelTransform movedRoot;
+    movedRoot.translation = {5.0f, 6.0f, 7.0f};
+    REQUIRE(instances.setNodeWorldTransforms(handle, {{1, composeModelTransform(movedRoot)}}));
+    REQUIRE(instances.nodeMatrix(handle, "child") != nullptr);
+    CHECK((*instances.nodeMatrix(handle, "child"))[12] == doctest::Approx(6.0f));
+    CHECK((*instances.nodeMatrix(handle, "child"))[13] == doctest::Approx(6.0f));
+    CHECK((*instances.nodeMatrix(handle, "child"))[14] == doctest::Approx(7.0f));
+
+    ModelTransform movedChild;
+    movedChild.translation = {2.0f, 3.0f, 4.0f};
+    REQUIRE(instances.setNodeWorldTransforms(handle, {{0, composeModelTransform(movedChild)}}));
+    CHECK((*instances.nodeMatrix(handle, "child"))[12] == doctest::Approx(2.0f));
+    CHECK((*instances.nodeMatrix(handle, "child"))[13] == doctest::Approx(3.0f));
+    CHECK((*instances.nodeMatrix(handle, "child"))[14] == doctest::Approx(4.0f));
+
+    REQUIRE(instances.setNodeWorldTransforms(handle, {}));
+    CHECK((*instances.nodeMatrix(handle, "child"))[12] == doctest::Approx(1.0f));
+    CHECK((*instances.nodeMatrix(handle, "child"))[13] == doctest::Approx(0.0f));
+    CHECK((*instances.nodeMatrix(handle, "child"))[14] == doctest::Approx(0.0f));
+}
+
 TEST_CASE("ModelAnimation stand-in minimum size changes the stand-in revision and resets with the slot")
 {
     using namespace OpenYAMM::Engine;

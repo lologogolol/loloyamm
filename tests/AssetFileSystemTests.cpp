@@ -790,6 +790,72 @@ TEST_CASE("AssetFileSystem mounts a release's optional language packs only for t
     std::filesystem::remove_all(temporaryRoot);
 }
 
+TEST_CASE("AssetFileSystem mounts purchased classic graphics by selected category")
+{
+    using namespace OpenYAMM::Engine;
+    const std::filesystem::path temporaryRoot = makeTemporaryRoot();
+    const std::filesystem::path assetRoot = temporaryRoot / "assets";
+    const std::filesystem::path originalRoot = temporaryRoot / "original_visuals";
+    writeZipFile(assetRoot / "packs/engine.core.zip", {{"data_tables/house_data.txt", "game-houses"}});
+    writeZipFile(assetRoot / "packs/mm6.core.zip", {
+        {"sprites/shared.bmp", "enhanced-sprite"},
+        {"textures/shared.bmp", "enhanced-texture"}
+    });
+    writeCorePackIndex(assetRoot, {"engine", "mm6"});
+    writeTextFile(originalRoot / "worlds" / "mm6" / "sprites" / "shared.bmp", "classic-sprite");
+    writeTextFile(originalRoot / "worlds" / "mm6" / "textures" / "shared.bmp", "classic-texture");
+    const AssetScaleProfile profile = createUniformAssetScaleProfile(AssetScaleTier::X1);
+
+    const auto checkMounted = [&](bool classicEnvironments, bool classicActors,
+                                  const std::string &expectedSprite, const std::string &expectedTexture)
+    {
+        CAPTURE(classicEnvironments);
+        CAPTURE(classicActors);
+        InstalledContentOptions options;
+        options.originalVisualsRoot = originalRoot;
+        options.classicEnvironmentGraphics = classicEnvironments;
+        options.classicActorGraphics = classicActors;
+        AssetFileSystem fs;
+        REQUIRE(fs.initialize(temporaryRoot, assetRoot, AssetScaleTier::X1, profile, "mm6", options));
+        CHECK(fs.readTextFile("Data/sprites/shared.bmp") == std::optional<std::string>(expectedSprite));
+        CHECK(fs.readTextFile("Data/bitmaps/shared.bmp") == std::optional<std::string>(expectedTexture));
+    };
+
+    checkMounted(false, false, "enhanced-sprite", "enhanced-texture");
+    checkMounted(false, true, "classic-sprite", "enhanced-texture");
+    checkMounted(true, false, "classic-sprite", "classic-texture");
+    checkMounted(true, true, "classic-sprite", "classic-texture");
+
+    std::filesystem::remove_all(temporaryRoot);
+}
+
+TEST_CASE("AssetFileSystem mounts each purchased game's classic music for the active world")
+{
+    using namespace OpenYAMM::Engine;
+    const std::filesystem::path temporaryRoot = makeTemporaryRoot();
+    const std::filesystem::path assetRoot = temporaryRoot / "assets";
+    const std::filesystem::path gamesRoot = temporaryRoot / "purchased";
+    writeZipFile(assetRoot / "packs/engine.core.zip", {{"data_tables/house_data.txt", "game-houses"}});
+    writeZipFile(assetRoot / "packs/mm6.core.zip", {{"music/2.mp3", "enhanced-mm6"}});
+    writeZipFile(assetRoot / "packs/mm7.core.zip", {{"music/2.mp3", "enhanced-mm7"}});
+    writeCorePackIndex(assetRoot, {"engine", "mm6", "mm7"});
+    writeTextFile(gamesRoot / "Might and Magic 6" / "Sounds" / "2.mp3", "classic-mm6");
+    writeTextFile(gamesRoot / "Might and Magic 7" / "Music" / "2.mp3", "classic-mm7");
+    const AssetScaleProfile profile = createUniformAssetScaleProfile(AssetScaleTier::X1);
+    InstalledContentOptions options;
+    options.classicMusicGamesRoot = gamesRoot;
+    options.classicMusic = true;
+
+    AssetFileSystem fs;
+    REQUIRE(fs.initialize(temporaryRoot, assetRoot, AssetScaleTier::X1, profile, "mm6", options));
+    CHECK(fs.readTextFile("Music/2.mp3") == std::optional<std::string>("classic-mm6"));
+    REQUIRE(fs.switchActiveWorld("mm7"));
+    CHECK(fs.readTextFile("Music/2.mp3") == std::optional<std::string>("classic-mm7"));
+
+    fs.shutdown();
+    std::filesystem::remove_all(temporaryRoot);
+}
+
 TEST_CASE("AssetFileSystem mounts changed packs only when they are kept on purpose")
 {
     using namespace OpenYAMM::Engine;

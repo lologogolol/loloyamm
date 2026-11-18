@@ -2798,7 +2798,8 @@ bool IndoorRenderer::initialize(
         m_indoorInteractiveDecorationEventCountsByEntity,
         m_indoorInteractiveDecorationHideWhenClearedByEntity,
         m_indoorInteractiveDecorationFixedEventByEntity);
-    if (pAssetFileSystem != nullptr && m_indoorDecorationBillboardSet)
+    if (pAssetFileSystem != nullptr && m_indoorDecorationBillboardSet
+        && !m_indoorDecorationBillboardSet->modelSpriteIds.empty())
     {
         std::string error;
         // A wall-mounted model (torch bracket) hangs on the nearest wall of its sector or the sectors beside it.

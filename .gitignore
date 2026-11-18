@@ -1,7 +1,9 @@
 /build/
+/build-push/
 /build-vulkan/
 /build-gprof/
 /build-prof/
+/cache/
 /build-windows-cross/
 /build-flatpak-release/
 /build_release/

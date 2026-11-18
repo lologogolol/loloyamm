@@ -196,6 +196,26 @@ std::string toLowerAscii(std::string value)
     return value;
 }
 
+std::optional<std::filesystem::path> childDirectoryIgnoreCase(
+    const std::filesystem::path &parent,
+    const std::string &name)
+{
+    const std::string wanted = toLowerAscii(name);
+    std::error_code error;
+    for (std::filesystem::directory_iterator entry(parent, error), end; !error && entry != end;
+         entry.increment(error))
+    {
+        std::error_code typeError;
+        if (entry->is_directory(typeError)
+            && !typeError
+            && toLowerAscii(utf8String(entry->path().filename())) == wanted)
+        {
+            return entry->path();
+        }
+    }
+    return std::nullopt;
+}
+
 bool filesHaveSameContents(const std::filesystem::path &left, const std::filesystem::path &right)
 {
     std::error_code leftSizeError;
@@ -567,6 +587,24 @@ bool AssetFileSystem::initialize(
             shutdown();
             return false;
         }
+
+        if (!mountOriginalVisuals(
+                m_installedContentOptions.originalVisualsRoot,
+                m_activeWorldId,
+                m_installedContentOptions.classicEnvironmentGraphics,
+                m_installedContentOptions.classicActorGraphics))
+        {
+            shutdown();
+            return false;
+        }
+        if (!mountClassicMusic(
+                m_installedContentOptions.classicMusicGamesRoot,
+                m_activeWorldId,
+                m_installedContentOptions.classicMusic))
+        {
+            shutdown();
+            return false;
+        }
     }
     else if (packagedAssetRoot)
     {
@@ -577,6 +615,24 @@ bool AssetFileSystem::initialize(
         }
 
         if (!validateTierDirectoriesInMountedPackages())
+        {
+            shutdown();
+            return false;
+        }
+
+        if (!mountOriginalVisuals(
+                m_installedContentOptions.originalVisualsRoot,
+                m_activeWorldId,
+                m_installedContentOptions.classicEnvironmentGraphics,
+                m_installedContentOptions.classicActorGraphics))
+        {
+            shutdown();
+            return false;
+        }
+        if (!mountClassicMusic(
+                m_installedContentOptions.classicMusicGamesRoot,
+                m_activeWorldId,
+                m_installedContentOptions.classicMusic))
         {
             shutdown();
             return false;
@@ -598,6 +654,24 @@ bool AssetFileSystem::initialize(
         }
 
         if (!mountDevelopmentPackageRoots(assetRoot, m_activeWorldId))
+        {
+            shutdown();
+            return false;
+        }
+
+        if (!mountOriginalVisuals(
+                m_installedContentOptions.originalVisualsRoot,
+                m_activeWorldId,
+                m_installedContentOptions.classicEnvironmentGraphics,
+                m_installedContentOptions.classicActorGraphics))
+        {
+            shutdown();
+            return false;
+        }
+        if (!mountClassicMusic(
+                m_installedContentOptions.classicMusicGamesRoot,
+                m_activeWorldId,
+                m_installedContentOptions.classicMusic))
         {
             shutdown();
             return false;
@@ -1472,6 +1546,85 @@ bool AssetFileSystem::mountLanguagePack(bool packagedRoot)
     }
 
     error.clear();
+    return true;
+}
+
+bool AssetFileSystem::mountOriginalVisuals(
+    const std::filesystem::path &root,
+    const std::string &activeWorldId,
+    bool classicEnvironmentGraphics,
+    bool classicActorGraphics)
+{
+    if (root.empty() || (!classicEnvironmentGraphics && !classicActorGraphics))
+    {
+        return true;
+    }
+    const std::string worldId = normalizePackageId(activeWorldId, DefaultActiveWorldId);
+    const std::filesystem::path world = root / "worlds" / worldId;
+    const std::filesystem::path sprites = world / SpritesDirectoryName;
+    const std::filesystem::path textures = world / TexturesDirectoryName;
+    const std::string worldMount = "/worlds/" + worldId;
+    std::error_code error;
+    if (!std::filesystem::is_directory(sprites, error)
+        || (classicEnvironmentGraphics && !std::filesystem::is_directory(textures, error)))
+    {
+        std::cerr << "Original visuals cache is incomplete for " << activeWorldId << ": " << world << '\n';
+        return false;
+    }
+    // Legacy paths are resolved through the active package first. Mount at that canonical package path so the
+    // purchased files win there without replacing an engine or another world's assets.
+    if (!mountSearchRootAt(sprites, worldMount + "/" + SpritesDirectoryName, false)
+        || (classicEnvironmentGraphics
+            && !mountSearchRootAt(textures, worldMount + "/" + TexturesDirectoryName, false)))
+    {
+        return false;
+    }
+    std::cout << "Classic graphics: mounted purchased "
+              << worldId << " sprites"
+              << (classicEnvironmentGraphics ? " and textures" : "") << " from " << world << '\n';
+    return true;
+}
+
+bool AssetFileSystem::mountClassicMusic(
+    const std::filesystem::path &gamesRoot,
+    const std::string &activeWorldId,
+    bool enabled)
+{
+    if (!enabled)
+    {
+        return true;
+    }
+
+    const std::string worldId = normalizePackageId(activeWorldId, DefaultActiveWorldId);
+    const std::array<std::pair<const char *, const char *>, 3> games = {{
+        {"mm6", "Might and Magic 6"},
+        {"mm7", "Might and Magic 7"},
+        {"mm8", "Might and Magic 8"},
+    }};
+    const auto game = std::find_if(games.begin(), games.end(), [&worldId](const auto &entry)
+    {
+        return entry.first == worldId;
+    });
+    if (game == games.end())
+    {
+        std::cout << "Classic music: no purchased soundtrack mapping for " << worldId << '\n';
+        return true;
+    }
+
+    const std::optional<std::filesystem::path> gameFolder = childDirectoryIgnoreCase(gamesRoot, game->second);
+    const std::optional<std::filesystem::path> musicFolder = gameFolder
+        ? childDirectoryIgnoreCase(*gameFolder, worldId == "mm6" ? "Sounds" : "Music")
+        : std::nullopt;
+    if (!musicFolder || !std::filesystem::is_regular_file(*musicFolder / "2.mp3"))
+    {
+        std::cerr << "Classic music is incomplete for " << worldId << " below " << gamesRoot << '\n';
+        return false;
+    }
+    if (!mountSearchRootAt(*musicFolder, "/worlds/" + worldId + "/music", false))
+    {
+        return false;
+    }
+    std::cout << "Classic music: mounted purchased " << worldId << " tracks from " << *musicFolder << '\n';
     return true;
 }
 

@@ -70,6 +70,7 @@ add_library(openyamm_game STATIC
     fx/TalkPortraitFrame.cpp
     fx/ActorClipSounds.cpp
     fx/ActorClipEffects.cpp
+    fx/ActorRagdoll.cpp
     fx/WorldFxSystem.cpp
     gameplay/GameMechanics.cpp
     gameplay/GameplayActionController.cpp
@@ -142,6 +143,7 @@ add_library(openyamm_game STATIC
     pathfinding/ActorPathRuntime.cpp
     audio/HouseVideoPlayer.cpp
     content/CompletionCertificates.cpp
+    content/CommercialVisualAssets.cpp
     content/ContentManifest.cpp
     content/ContentTableComposer.cpp
     content/NamedMods.cpp
@@ -421,6 +423,7 @@ target_include_directories(openyamm_game
         ${CMAKE_SOURCE_DIR}
         ${OPENYAMM_IMGUI_SOURCE_DIR}
         ${OPENYAMM_BGFX_FETCH_SOURCE_DIR}/3rdparty
+        ${OPENYAMM_BIMG_SOURCE_DIR}/3rdparty
 )
 
 set_property(
