@@ -198,6 +198,10 @@ struct GameSettings
 
     struct GamepadSettings
     {
+        bool enabled = true;
+        int deadZonePercent = 25;
+        int lookSensitivity = 100;
+        bool invertLookY = false;
         std::array<GamepadBinding, KeyboardActionCount> bindings = createDefaultGamepadBindings();
 
         GamepadBinding binding(KeyboardAction action) const
@@ -212,6 +216,10 @@ struct GameSettings
 
         void restoreDefaults()
         {
+            enabled = true;
+            deadZonePercent = 25;
+            lookSensitivity = 100;
+            invertLookY = false;
             bindings = createDefaultGamepadBindings();
         }
     };

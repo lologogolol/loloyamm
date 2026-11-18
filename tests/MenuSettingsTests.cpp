@@ -178,6 +178,17 @@ TEST_CASE("gamepad bindings use XInput names and survive settings save and load"
     CHECK(parseGamepadBindingName("not-a-button").kind == GamepadBindingKind::None);
 
     GameSettings settings = GameSettings::createDefault();
+    CHECK(menuSettingValue(settings, "gamepad_enabled") == "true");
+    CHECK(menuSettingValue(settings, "gamepad_deadzone") == "25");
+    CHECK(menuSettingValue(settings, "gamepad_look_sensitivity") == "100");
+    CHECK(menuSettingValue(settings, "gamepad_invert_look_y") == "false");
+    REQUIRE(setMenuSettingValue(settings, "gamepad_enabled", "false"));
+    REQUIRE(setMenuSettingValue(settings, "gamepad_deadzone", "18"));
+    REQUIRE(setMenuSettingValue(settings, "gamepad_look_sensitivity", "135"));
+    REQUIRE(setMenuSettingValue(settings, "gamepad_invert_look_y", "true"));
+    CHECK_FALSE(setMenuSettingValue(settings, "gamepad_deadzone", "51"));
+    CHECK_FALSE(setMenuSettingValue(settings, "gamepad_look_sensitivity", "201"));
+    CHECK_FALSE(setMenuSettingValue(settings, "gamepad_enabled", "sometimes"));
     CHECK(sameMenuGamepadBinding(
         settings.gamepad.binding(KeyboardAction::ToggleCursorMode), rightStick));
     const GamepadBinding remapped = gamepadButtonInputBinding(SDL_GAMEPAD_BUTTON_GUIDE);
@@ -192,6 +203,19 @@ TEST_CASE("gamepad bindings use XInput names and survive settings save and load"
     CHECK(sameMenuGamepadBinding(
         loaded->gamepad.binding(KeyboardAction::ToggleCursorMode), remapped));
     CHECK(loaded->gamepad.binding(KeyboardAction::Attack).kind == GamepadBindingKind::None);
+    CHECK_FALSE(loaded->gamepad.enabled);
+    CHECK(loaded->gamepad.deadZonePercent == 18);
+    CHECK(loaded->gamepad.lookSensitivity == 135);
+    CHECK(loaded->gamepad.invertLookY);
+
+    {
+        std::ofstream legacy(path);
+        legacy << "[controls]\nmouse_sensitivity=42\ninvert_mouse_y=true\n";
+    }
+    const std::optional<GameSettings> legacy = loadGameSettings(path, error);
+    REQUIRE_MESSAGE(legacy, error);
+    CHECK(legacy->gamepad.lookSensitivity == 42);
+    CHECK(legacy->gamepad.invertLookY);
     std::filesystem::remove(path);
 }
 

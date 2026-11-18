@@ -378,6 +378,22 @@ std::string menuSettingValue(const GameSettings &settings, std::string_view id)
     {
         return settings.invertMouseY ? "true" : "false";
     }
+    if (id == "gamepad_enabled")
+    {
+        return settings.gamepad.enabled ? "true" : "false";
+    }
+    if (id == "gamepad_deadzone")
+    {
+        return std::to_string(settings.gamepad.deadZonePercent);
+    }
+    if (id == "gamepad_look_sensitivity")
+    {
+        return std::to_string(settings.gamepad.lookSensitivity);
+    }
+    if (id == "gamepad_invert_look_y")
+    {
+        return settings.gamepad.invertLookY ? "true" : "false";
+    }
     if (id == "smart_click")
     {
         return settings.smartClick ? "true" : "false";
@@ -1122,6 +1138,46 @@ bool setMenuSettingValue(GameSettings &settings, std::string_view id, const std:
             return false;
         }
         settings.invertMouseY = value == "true";
+        return true;
+    }
+    if (id == "gamepad_enabled")
+    {
+        if (value != "true" && value != "false")
+        {
+            return false;
+        }
+        settings.gamepad.enabled = value == "true";
+        return true;
+    }
+    if (id == "gamepad_deadzone")
+    {
+        int number = 0;
+        const auto result = std::from_chars(value.data(), value.data() + value.size(), number);
+        if (result.ec != std::errc{} || result.ptr != value.data() + value.size() || number < 0 || number > 50)
+        {
+            return false;
+        }
+        settings.gamepad.deadZonePercent = number;
+        return true;
+    }
+    if (id == "gamepad_look_sensitivity")
+    {
+        int number = 0;
+        const auto result = std::from_chars(value.data(), value.data() + value.size(), number);
+        if (result.ec != std::errc{} || result.ptr != value.data() + value.size() || number < 0 || number > 200)
+        {
+            return false;
+        }
+        settings.gamepad.lookSensitivity = number;
+        return true;
+    }
+    if (id == "gamepad_invert_look_y")
+    {
+        if (value != "true" && value != "false")
+        {
+            return false;
+        }
+        settings.gamepad.invertLookY = value == "true";
         return true;
     }
     if (id == "smart_click")

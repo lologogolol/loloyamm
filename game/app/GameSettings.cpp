@@ -2036,6 +2036,44 @@ std::optional<GameSettings> parseGameSettingsDocument(const IniDocument &documen
         }
     }
 
+    // Older settings tied the controller's look response to the mouse options. Preserve that behavior until the
+    // independently saved controller options exist.
+    settings.gamepad.lookSensitivity = settings.mouseSensitivity;
+    settings.gamepad.invertLookY = settings.invertMouseY;
+
+    if (const std::optional<std::string> value = getIniValue(document, "gamepad", "enabled"))
+    {
+        bool parsed = settings.gamepad.enabled;
+        if (parseBoolValue(*value, parsed))
+        {
+            settings.gamepad.enabled = parsed;
+        }
+    }
+    if (const std::optional<std::string> value = getIniValue(document, "gamepad", "deadzone"))
+    {
+        int parsed = settings.gamepad.deadZonePercent;
+        if (parseIntValue(*value, parsed))
+        {
+            settings.gamepad.deadZonePercent = std::clamp(parsed, 0, 95);
+        }
+    }
+    if (const std::optional<std::string> value = getIniValue(document, "gamepad", "look_sensitivity"))
+    {
+        int parsed = settings.gamepad.lookSensitivity;
+        if (parseIntValue(*value, parsed))
+        {
+            settings.gamepad.lookSensitivity = std::clamp(parsed, 0, 200);
+        }
+    }
+    if (const std::optional<std::string> value = getIniValue(document, "gamepad", "invert_look_y"))
+    {
+        bool parsed = settings.gamepad.invertLookY;
+        if (parseBoolValue(*value, parsed))
+        {
+            settings.gamepad.invertLookY = parsed;
+        }
+    }
+
     for (const KeyboardBindingDefinition &definition : keyboardBindingDefinitions())
     {
         const std::optional<std::string> value =
@@ -2774,6 +2812,10 @@ std::vector<SettingsEntry> serializeGameSettings(const GameSettings &settings)
     }
 
     serializer.section("gamepad");
+    serializer.add("enabled", boolValue(settings.gamepad.enabled));
+    serializer.add("deadzone", std::clamp(settings.gamepad.deadZonePercent, 0, 95));
+    serializer.add("look_sensitivity", std::clamp(settings.gamepad.lookSensitivity, 0, 200));
+    serializer.add("invert_look_y", boolValue(settings.gamepad.invertLookY));
     for (const KeyboardBindingDefinition &definition : keyboardBindingDefinitions())
     {
         serializer.add(definition.iniKey, gamepadBindingName(settings.gamepad.binding(definition.action)));

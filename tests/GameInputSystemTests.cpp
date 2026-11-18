@@ -12,6 +12,17 @@
 
 using namespace OpenYAMM::Game;
 
+TEST_CASE("gamepad axis mapping applies a configurable rescaled deadzone")
+{
+    CHECK(gamepadAxisValue(0, 25) == 0.0f);
+    CHECK(gamepadAxisValue(8191, 25) == 0.0f);
+    CHECK(gamepadAxisValue(16384, 25) == doctest::Approx(1.0f / 3.0f).epsilon(0.001));
+    CHECK(gamepadAxisValue(std::numeric_limits<int16_t>::max(), 25) == doctest::Approx(1.0f));
+    CHECK(gamepadAxisValue(std::numeric_limits<int16_t>::min(), 25) == doctest::Approx(-1.0f));
+    CHECK(gamepadAxisValue(16384, -10) == gamepadAxisValue(16384, 0));
+    CHECK(gamepadAxisValue(16384, 100) == gamepadAxisValue(16384, 95));
+}
+
 #if !defined(__ANDROID__)
 namespace
 {
@@ -217,6 +228,41 @@ TEST_CASE("gamepad gameplay buttons and triggers follow remapped settings")
     updateGameplayGamepad(input, settings);
     CHECK(input.frame().action(KeyboardAction::Attack).pressed);
     CHECK(input.frame().action(KeyboardAction::Attack).held);
+}
+
+TEST_CASE("gamepad enable deadzone sensitivity and invert settings affect input independently")
+{
+    VirtualMenuGamepad gamepad;
+    GameInputSystem input;
+    GameSettings settings = GameSettings::createDefault();
+    settings.gamepad.setBinding(
+        KeyboardAction::Attack, gamepadButtonInputBinding(SDL_GAMEPAD_BUTTON_NORTH));
+    input.handleSdlEvent(gamepad.addedEvent());
+
+    gamepad.axis(SDL_GAMEPAD_AXIS_RIGHTX, 12000);
+    settings.gamepad.deadZonePercent = 50;
+    updateGameplayGamepad(input, settings, 0.02f);
+    CHECK(input.frame().relativeMouseX == 0.0f);
+
+    settings.gamepad.deadZonePercent = 0;
+    updateGameplayGamepad(input, settings, 0.02f);
+    CHECK(input.frame().relativeMouseX > 0.0f);
+
+    gamepad.axis(SDL_GAMEPAD_AXIS_RIGHTX, std::numeric_limits<int16_t>::max());
+    settings.gamepad.lookSensitivity = 50;
+    updateGameplayGamepad(input, settings, 0.02f);
+    CHECK(input.frame().relativeMouseX == doctest::Approx(6.0f));
+
+    gamepad.axis(SDL_GAMEPAD_AXIS_RIGHTY, std::numeric_limits<int16_t>::max());
+    settings.gamepad.invertLookY = true;
+    updateGameplayGamepad(input, settings, 0.02f);
+    CHECK(input.frame().relativeMouseY == doctest::Approx(-6.0f));
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_NORTH, true);
+    settings.gamepad.enabled = false;
+    updateGameplayGamepad(input, settings);
+    CHECK_FALSE(input.frame().action(KeyboardAction::Attack).held);
+    CHECK(input.frame().relativeMouseX == 0.0f);
 }
 
 TEST_CASE("game input preserves a quick trackpad tap and its mouse action")

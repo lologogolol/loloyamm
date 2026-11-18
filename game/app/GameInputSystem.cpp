@@ -28,27 +28,14 @@ constexpr float MobileDebugConsoleGestureTopEdgeNormalized = 0.055f;
 constexpr float MobileDebugConsoleGestureMinDragNormalized = 0.14f;
 constexpr float MobileDebugConsoleGestureMaxHorizontalNormalized = 0.09f;
 constexpr uint64_t MobileLongPressInspectNanoseconds = 400'000'000ULL;
-constexpr int16_t GamepadAxisDeadZone = 8000;
 constexpr float GamepadDigitalThreshold = 0.25f;
 constexpr float GamepadTriggerThreshold = 0.35f;
-constexpr float GamepadLookPixelsPerFrame = 10.0f;
+constexpr float GamepadLookPixelsPerSecond = 600.0f;
 constexpr float GamepadMenuDigitalThreshold = 0.55f;
 constexpr float GamepadMenuInitialRepeatSeconds = 0.36f;
 constexpr float GamepadMenuRepeatSeconds = 0.11f;
 constexpr float GamepadMenuCursorMinimumPixelsPerSecond = 260.0f;
 constexpr float GamepadMenuCursorMaximumPixelsPerSecond = 1260.0f;
-
-float normalizedGamepadAxis(int16_t value)
-{
-    const int magnitude = std::abs(static_cast<int>(value));
-    if (magnitude <= GamepadAxisDeadZone)
-    {
-        return 0.0f;
-    }
-    const float normalized = static_cast<float>(magnitude - GamepadAxisDeadZone)
-        / static_cast<float>(std::numeric_limits<int16_t>::max() - GamepadAxisDeadZone);
-    return value < 0 ? -normalized : normalized;
-}
 
 GameplayButtonInputState buildButtonState(bool held, bool previousHeld)
 {
@@ -86,6 +73,21 @@ void suppressButtonWhileHeld(bool physicalHeld, bool &logicalHeld, bool &suppres
 }
 
 } // namespace
+
+float gamepadAxisValue(int16_t value, int deadZonePercent)
+{
+    const float normalized = value < 0
+        ? static_cast<float>(value) / 32768.0f
+        : static_cast<float>(value) / 32767.0f;
+    const float magnitude = std::abs(normalized);
+    const float deadZone = static_cast<float>(std::clamp(deadZonePercent, 0, 95)) / 100.0f;
+    if (magnitude <= deadZone)
+    {
+        return 0.0f;
+    }
+    const float rescaled = std::clamp((magnitude - deadZone) / (1.0f - deadZone), 0.0f, 1.0f);
+    return std::copysign(rescaled, normalized);
+}
 
 GameInputSystem::~GameInputSystem()
 {
@@ -502,6 +504,7 @@ void GameInputSystem::updateFromEngineInput(
 #endif
 
 #if defined(__ANDROID__) || defined(OPENYAMM_IOS)
+    const bool physicalMouseMoved = false;
     m_frame.relativeMouseX = 0.0f;
     m_frame.relativeMouseY = 0.0f;
 #else
@@ -588,14 +591,21 @@ void GameInputSystem::updateFromEngineInput(
         actionHeld[keyboardActionIndex(definition.action)] = held;
     }
 
-#if !defined(__ANDROID__) && !defined(OPENYAMM_IOS)
+#if !defined(OPENYAMM_IOS)
     ensureGamepadOpen();
-    if (!blockGameplayInput && m_pGamepad != nullptr)
+    if (!blockGameplayInput && settings.gamepad.enabled && m_pGamepad != nullptr)
     {
-        const float leftX = normalizedGamepadAxis(SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_LEFTX));
-        const float leftY = normalizedGamepadAxis(SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_LEFTY));
-        const float rightX = normalizedGamepadAxis(SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_RIGHTX));
-        const float rightY = normalizedGamepadAxis(SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_RIGHTY));
+        const int deadZonePercent = std::clamp(settings.gamepad.deadZonePercent, 0, 95);
+        const float lookSensitivityScale =
+            static_cast<float>(std::clamp(settings.gamepad.lookSensitivity, 0, 200)) / 100.0f;
+        const float leftX = gamepadAxisValue(
+            SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_LEFTX), deadZonePercent);
+        const float leftY = gamepadAxisValue(
+            SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_LEFTY), deadZonePercent);
+        const float rightX = gamepadAxisValue(
+            SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_RIGHTX), deadZonePercent);
+        const float rightY = gamepadAxisValue(
+            SDL_GetGamepadAxis(m_pGamepad, SDL_GAMEPAD_AXIS_RIGHTY), deadZonePercent);
         std::array<bool, KeyboardActionCount> gamepadActionHeld = {};
         for (size_t actionIndex = 0; actionIndex < gamepadActionHeld.size(); ++actionIndex)
         {
@@ -606,8 +616,8 @@ void GameInputSystem::updateFromEngineInput(
             }
             else if (binding.kind == GamepadBindingKind::Trigger)
             {
-                gamepadActionHeld[actionIndex] = normalizedGamepadAxis(
-                    SDL_GetGamepadAxis(m_pGamepad, binding.axis)) > GamepadTriggerThreshold;
+                gamepadActionHeld[actionIndex] = gamepadAxisValue(
+                    SDL_GetGamepadAxis(m_pGamepad, binding.axis), deadZonePercent) > GamepadTriggerThreshold;
             }
         }
 
@@ -649,7 +659,7 @@ void GameInputSystem::updateFromEngineInput(
                 m_gamepadCursorY = m_frame.pointerY;
             }
 
-            if (rightMagnitude > 0.0f && screenWidth > 0 && screenHeight > 0)
+            if (rightMagnitude > 0.0f && lookSensitivityScale > 0.0f && screenWidth > 0 && screenHeight > 0)
             {
                 m_gamepadCursorDriving = true;
                 m_gamepadMenuFocusMode = false;
@@ -658,12 +668,13 @@ void GameInputSystem::updateFromEngineInput(
                         * rightMagnitude * rightMagnitude;
                 const float resolutionScale = std::max(0.75f, static_cast<float>(screenHeight) / 720.0f);
                 const float stepSeconds = std::clamp(frameDeltaSeconds, 0.0f, 0.05f);
-                m_gamepadCursorX = std::clamp(m_gamepadCursorX + rightX / rightMagnitude * speed * resolutionScale
-                        * stepSeconds,
+                m_gamepadCursorX = std::clamp(m_gamepadCursorX + rightX / rightMagnitude * speed
+                        * lookSensitivityScale * resolutionScale * stepSeconds,
                     0.0f, static_cast<float>(screenWidth - 1));
-                m_gamepadCursorY = std::clamp(m_gamepadCursorY + rightY / rightMagnitude * speed * resolutionScale
-                        * stepSeconds,
+                m_gamepadCursorY = std::clamp(m_gamepadCursorY + rightY / rightMagnitude * speed
+                        * lookSensitivityScale * resolutionScale * stepSeconds,
                     0.0f, static_cast<float>(screenHeight - 1));
+#if !defined(__ANDROID__)
                 SDL_Window *pWindow = SDL_GetMouseFocus();
                 if (pWindow == nullptr)
                 {
@@ -673,6 +684,7 @@ void GameInputSystem::updateFromEngineInput(
                 {
                     SDL_WarpMouseInWindow(pWindow, m_gamepadCursorX, m_gamepadCursorY);
                 }
+#endif
             }
             if (m_gamepadCursorDriving)
             {
@@ -806,15 +818,19 @@ void GameInputSystem::updateFromEngineInput(
                 m_frame.movementSpeedScale = movementMagnitude;
             }
 
-            const float lookScale = GamepadLookPixelsPerFrame
-                * static_cast<float>(std::clamp(settings.mouseSensitivity, 0, 100)) / 100.0f;
+            const float lookScale = GamepadLookPixelsPerSecond * lookSensitivityScale
+                * std::clamp(frameDeltaSeconds, 0.0f, 0.05f);
             m_frame.relativeMouseX += rightX * lookScale;
-            m_frame.relativeMouseY += (settings.invertMouseY ? -rightY : rightY) * lookScale;
+            m_frame.relativeMouseY += (settings.gamepad.invertLookY ? -rightY : rightY) * lookScale;
         }
     }
     else
     {
         m_frame.gamepadCursorModeActive = false;
+        if (!settings.gamepad.enabled)
+        {
+            m_gamepadInteractCursorMode = false;
+        }
         m_gamepadMenuFocusMode = false;
         m_gamepadCursorDriving = false;
         m_previousGamepadMenuDirections.fill(false);

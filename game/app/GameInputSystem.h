@@ -14,6 +14,9 @@
 
 namespace OpenYAMM::Game
 {
+// Maps a raw SDL stick axis to [-1, 1], removing and rescaling the configurable center deadzone.
+float gamepadAxisValue(int16_t value, int deadZonePercent);
+
 class GameInputSystem
 {
 public:

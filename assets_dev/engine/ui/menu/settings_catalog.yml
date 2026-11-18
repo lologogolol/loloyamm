@@ -679,6 +679,39 @@ settings:
   - [modern, Modern]
   - [classic, Classic]
   desc: 'Modern: WASD, left-click attack, E to use. Classic: arrow keys, A to attack, left-click to use.'
+- id: gamepad_enabled
+  section: controls
+  group: Gamepad
+  name: Controller
+  type: toggle
+  desc: Use a connected game controller for movement, actions and menus.
+- id: gamepad_deadzone
+  section: controls
+  group: Gamepad
+  name: Stick deadzone
+  type: range
+  min: 0
+  max: 50
+  unit: '%'
+  depends: gamepad_enabled
+  desc: How far a stick moves before input begins.
+- id: gamepad_look_sensitivity
+  section: controls
+  group: Gamepad
+  name: Stick sensitivity
+  type: range
+  min: 0
+  max: 200
+  unit: '%'
+  depends: gamepad_enabled
+  desc: How fast the right stick moves the view and pointer. Zero turns it off.
+- id: gamepad_invert_look_y
+  section: controls
+  group: Gamepad
+  name: Invert stick Y
+  type: toggle
+  depends: gamepad_enabled
+  desc: Push the right stick up to look down, and down to look up.
 - id: smart_click
   section: controls
   group: Mouse
