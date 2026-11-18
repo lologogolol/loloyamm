@@ -13,6 +13,7 @@
 #include "game/app/GameUpdater.h"
 #include "game/app/ProfilingControl.h"
 #include "game/app/OpenYammMain.h"
+#include "game/content/CommercialVisualAssets.h"
 #include "game/indoor/IndoorBakeSceneExport.h"
 #include "game/outdoor/HeadlessOutdoorDiagnostics.h"
 #include "game/scenario/ScenarioHeadlessCommand.h"
@@ -391,6 +392,13 @@ void applySettingsConfigOverridesIfConfigured(
     if (!assetScaleArgumentProvided)
     {
         config.assetScaleProfile = settings->assetScaleProfile;
+
+        if (settings->classicEnvironmentGraphics)
+        {
+            config.assetScaleProfile.textures = OpenYAMM::Engine::AssetScaleTier::X1;
+            config.assetScaleProfile.sky = OpenYAMM::Engine::AssetScaleTier::X1;
+            config.assetScaleProfile.decorations = OpenYAMM::Engine::AssetScaleTier::X1;
+        }
     }
 
     config.fpsTrace = settings->fpsTrace;
@@ -505,6 +513,45 @@ int runGame(int argc, char **argv, OpenYAMM::Engine::LogFile &logFile)
         worldArgumentProvided,
         assetScaleArgumentProvided,
         assetRootArgumentProvided);
+
+    if (!headlessCommand)
+    {
+        const GameSettings settings = savedSettings();
+        if (settings.classicEnvironmentGraphics || settings.classicActorGraphics)
+        {
+            CommercialVisualAssetsResult originalVisuals;
+            std::string originalVisualsError;
+            std::error_code currentPathError;
+            const std::filesystem::path cacheParent =
+                std::filesystem::current_path(currentPathError) / "cache" / "original_visuals";
+            if (!currentPathError
+                && prepareCommercialVisualAssets(
+                    settings.purchasedGamesFolder, cacheParent, originalVisuals, originalVisualsError))
+            {
+                config.installedContent.originalVisualsRoot = originalVisuals.cacheRoot;
+                config.installedContent.classicEnvironmentGraphics = settings.classicEnvironmentGraphics;
+                config.installedContent.classicActorGraphics = settings.classicActorGraphics;
+            }
+            else
+            {
+                std::cerr << "Original visuals are unavailable; using OpenYAMM visuals: "
+                          << (currentPathError ? currentPathError.message() : originalVisualsError) << '\n';
+            }
+        }
+        if (settings.classicMusic)
+        {
+            std::string classicMusicError;
+            if (validateCommercialMusicRoot(settings.classicMusicFolder, classicMusicError))
+            {
+                config.installedContent.classicMusicGamesRoot = settings.classicMusicFolder;
+                config.installedContent.classicMusic = true;
+            }
+            else
+            {
+                std::cerr << "Classic music is unavailable; using OpenYAMM music: " << classicMusicError << '\n';
+            }
+        }
+    }
 
     if (headlessCommand)
     {

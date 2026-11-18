@@ -1173,7 +1173,8 @@ std::optional<SpriteFrameTable> loadSpriteFrameTable(
     const Engine::AssetFileSystem &assetFileSystem,
     const std::unordered_set<std::string> &monsterFamilies = {},
     const std::unordered_set<std::string> &worldPrefixedMonsterSpriteNames = {},
-    MapAssetLoadSharedCache *pSharedCache = nullptr)
+    MapAssetLoadSharedCache *pSharedCache = nullptr,
+    bool useOriginalTextureNames = false)
 {
     const std::optional<SpriteFrameTable> commonSpriteFrameTable =
         loadCommonSpriteFrameTable(assetFileSystem, pSharedCache);
@@ -1193,6 +1194,11 @@ std::optional<SpriteFrameTable> loadSpriteFrameTable(
             pSharedCache))
     {
         return std::nullopt;
+    }
+
+    if (useOriginalTextureNames)
+    {
+        spriteFrameTable.useOriginalTextureNames();
     }
 
     return spriteFrameTable;
@@ -2133,13 +2139,14 @@ std::optional<DecorationBillboardSet> buildDecorationBillboardSet(
     const std::vector<OutdoorBitmapTexture> &decorationTextures,
     BitmapLoadCache &bitmapLoadCache,
     const MapLoadProgressPump &progressPump,
-    MapAssetLoadSharedCache *pSharedCache
+    MapAssetLoadSharedCache *pSharedCache,
+    bool classicEnvironmentGraphics
 )
 {
     DecorationBillboardSet billboardSet = {};
 
     const std::optional<SpriteFrameTable> spriteFrameTable =
-        loadSpriteFrameTable(assetFileSystem, {}, {}, pSharedCache);
+        loadSpriteFrameTable(assetFileSystem, {}, {}, pSharedCache, classicEnvironmentGraphics);
 
     if (!spriteFrameTable)
     {
@@ -2159,7 +2166,8 @@ std::optional<DecorationBillboardSet> buildDecorationBillboardSet(
     // A broken manifest leaves every sprite loaded; DecorationModelSet::load reports it and draws the sprites.
     std::vector<std::string> modelledNames;
     std::string modelError;
-    if (modelledDecorationNames(assetFileSystem, worldId, mapFile, modelledNames, modelError))
+    if (!classicEnvironmentGraphics
+        && modelledDecorationNames(assetFileSystem, worldId, mapFile, modelledNames, modelError))
     {
         for (const std::string &name : modelledNames)
         {
@@ -2472,7 +2480,8 @@ std::optional<DecorationBillboardSet> buildOutdoorDecorationBillboardSet(
     const std::vector<OutdoorBitmapTexture> &decorationTextures,
     BitmapLoadCache &bitmapLoadCache,
     const MapLoadProgressPump &progressPump,
-    MapAssetLoadSharedCache *pSharedCache
+    MapAssetLoadSharedCache *pSharedCache,
+    bool classicEnvironmentGraphics
 )
 {
     std::optional<DecorationBillboardSet> billboardSet =
@@ -2484,7 +2493,8 @@ std::optional<DecorationBillboardSet> buildOutdoorDecorationBillboardSet(
             decorationTextures,
             bitmapLoadCache,
             progressPump,
-            pSharedCache);
+            pSharedCache,
+            classicEnvironmentGraphics);
 
     if (!billboardSet)
     {
@@ -2518,7 +2528,8 @@ std::optional<DecorationBillboardSet> buildIndoorDecorationBillboardSet(
     const std::vector<OutdoorBitmapTexture> &decorationTextures,
     BitmapLoadCache &bitmapLoadCache,
     const MapLoadProgressPump &progressPump,
-    MapAssetLoadSharedCache *pSharedCache
+    MapAssetLoadSharedCache *pSharedCache,
+    bool classicEnvironmentGraphics
 )
 {
     std::optional<DecorationBillboardSet> billboardSet =
@@ -2530,7 +2541,8 @@ std::optional<DecorationBillboardSet> buildIndoorDecorationBillboardSet(
             decorationTextures,
             bitmapLoadCache,
             progressPump,
-            pSharedCache);
+            pSharedCache,
+            classicEnvironmentGraphics);
 
     if (!billboardSet)
     {
@@ -2637,13 +2649,14 @@ std::optional<SpriteObjectBillboardSet> buildSpriteObjectBillboardSet(
     const std::string &worldId,
     BitmapLoadCache &bitmapLoadCache,
     const MapLoadProgressPump &progressPump,
-    MapAssetLoadSharedCache *pSharedCache
+    MapAssetLoadSharedCache *pSharedCache,
+    bool classicEnvironmentGraphics
 )
 {
     SpriteObjectBillboardSet billboardSet = {};
 
     const std::optional<SpriteFrameTable> spriteFrameTable =
-        loadSpriteFrameTable(assetFileSystem, {}, {}, pSharedCache);
+        loadSpriteFrameTable(assetFileSystem, {}, {}, pSharedCache, classicEnvironmentGraphics);
 
     if (!spriteFrameTable)
     {
@@ -3318,7 +3331,8 @@ std::optional<ActorPreviewBillboardSet> buildActorPreviewBillboardSet(
     bool decodeAllTextures = true,
     const MapLoadProgressPump &progressPump = {},
     MapAssetLoadSharedCache *pSharedCache = nullptr,
-    std::shared_ptr<const ActorModelManifest> pActorModels = {}
+    std::shared_ptr<const ActorModelManifest> pActorModels = {},
+    bool classicActorGraphics = false
 )
 {
     ActorPreviewBillboardSet billboardSet = {};
@@ -3373,7 +3387,8 @@ std::optional<ActorPreviewBillboardSet> buildActorPreviewBillboardSet(
             assetFileSystem,
             neededMonsterFamilies,
             neededWorldPrefixedMonsterSpriteNames,
-            pSharedCache);
+            pSharedCache,
+            classicActorGraphics);
 
     if (!spriteFrameTable)
     {
@@ -4712,7 +4727,8 @@ std::optional<MapAssetInfo> MapAssetLoader::load(
                         purpose != MapLoadPurpose::FullGameplay,
                         progressPump,
                         pSharedCache,
-                        pActorModels
+                        pActorModels,
+                        companionLoadOptions.classicActorGraphics
                     );
                 logStageComplete("outdoor actor previews built");
             }
@@ -4781,7 +4797,8 @@ std::optional<MapAssetInfo> MapAssetLoader::load(
                         decorationTextures,
                         bitmapLoadCache,
                         progressPump,
-                        pSharedCache);
+                        pSharedCache,
+                        companionLoadOptions.classicEnvironmentGraphics);
                 logStageComplete("outdoor decoration billboards built");
             }
 
@@ -4795,7 +4812,8 @@ std::optional<MapAssetInfo> MapAssetLoader::load(
                         map.worldId,
                         bitmapLoadCache,
                         progressPump,
-                        pSharedCache
+                        pSharedCache,
+                        companionLoadOptions.classicEnvironmentGraphics
                     );
                 logStageComplete("outdoor sprite objects built");
             }
@@ -5006,7 +5024,8 @@ std::optional<MapAssetInfo> MapAssetLoader::load(
                         decorationTextures,
                         bitmapLoadCache,
                         progressPump,
-                        pSharedCache);
+                        pSharedCache,
+                        companionLoadOptions.classicEnvironmentGraphics);
                 logStageComplete("indoor decoration billboards built");
             }
 
@@ -5024,7 +5043,8 @@ std::optional<MapAssetInfo> MapAssetLoader::load(
                         true,
                         progressPump,
                         pSharedCache,
-                        pActorModels
+                        pActorModels,
+                        companionLoadOptions.classicActorGraphics
                     );
                 logStageComplete("indoor actor previews built");
             }
@@ -5039,7 +5059,8 @@ std::optional<MapAssetInfo> MapAssetLoader::load(
                         map.worldId,
                         bitmapLoadCache,
                         progressPump,
-                        pSharedCache
+                        pSharedCache,
+                        companionLoadOptions.classicEnvironmentGraphics
                     );
                 logStageComplete("indoor sprite objects built");
             }

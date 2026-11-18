@@ -5043,7 +5043,12 @@ bool GameDataLoader::loadSelectedMap(
         m_monsterTable,
         m_objectTable,
         mapLoadPurpose,
-        MapCompanionLoadOptions{.rulesetRoot = activeRulesetRoot(), .surfaceMaterials = m_surfaceMaterials},
+        MapCompanionLoadOptions{
+            .rulesetRoot = activeRulesetRoot(),
+            .surfaceMaterials = m_surfaceMaterials,
+            .classicEnvironmentGraphics = m_classicEnvironmentGraphics,
+            .classicActorGraphics = m_classicActorGraphics,
+        },
         progressPump,
         &m_mapAssetLoadSharedCache,
         m_pActorModelManifest);

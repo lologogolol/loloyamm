@@ -246,7 +246,6 @@ TEST_CASE("every function, keypad and punctuation key has a readable binding nam
     // Settings saved before keep loading.
     CHECK_EQ(parseKeyboardBindingName("Scancode_58"), SDL_SCANCODE_F1);
 }
-
 TEST_CASE("the fast attack repeat setting is off by default and loads back on")
 {
     CHECK_FALSE(GameSettings::createDefault().fastAttackRepeat);
@@ -269,4 +268,53 @@ TEST_CASE("an unbound action loads back unbound, not as its default key")
     // An unreadable name keeps the default.
     const GameSettings garbled = loadText("[profile]\nname=desktop\nversion=5\n[input]\nnext_weapon=NoSuchKey\n");
     CHECK_EQ(garbled.keyboard.binding(KeyboardAction::NextWeapon).kind, InputBindingKind::MouseWheelDown);
+}
+
+TEST_CASE("classic environment and actor graphics persist independently")
+{
+    CHECK_FALSE(GameSettings::createDefault().classicEnvironmentGraphics);
+    CHECK_FALSE(GameSettings::createDefault().classicActorGraphics);
+    const GameSettings loaded =
+        loadText("[profile]\nname=desktop\nversion=5\n[video]\nclassic_environment_graphics=true\n"
+            "classic_actor_graphics=false\n"
+            "purchased_games_folder=E:\\\\Games\n");
+    CHECK(loaded.classicEnvironmentGraphics);
+    CHECK_FALSE(loaded.classicActorGraphics);
+    CHECK_EQ(loaded.purchasedGamesFolder, R"(E:\\Games)");
+    CHECK(contains(savedNames(loaded), "video.classic_environment_graphics"));
+    CHECK(contains(savedNames(loaded), "video.classic_actor_graphics"));
+    CHECK(contains(savedNames(loaded), "video.purchased_games_folder"));
+}
+
+TEST_CASE("legacy original world visuals enables both split classic choices")
+{
+    const GameSettings loaded =
+        loadText("[profile]\nname=desktop\nversion=5\n[video]\noriginal_world_visuals=true\n");
+    CHECK(loaded.classicEnvironmentGraphics);
+    CHECK(loaded.classicActorGraphics);
+    CHECK_FALSE(contains(savedNames(loaded), "video.original_world_visuals"));
+    CHECK(contains(savedNames(loaded), "video.classic_environment_graphics"));
+    CHECK(contains(savedNames(loaded), "video.classic_actor_graphics"));
+}
+
+TEST_CASE("ragdoll and corpse persistence options load from gameplay")
+{
+    const GameSettings loaded =
+        loadText("[profile]\nname=desktop\nversion=5\n[gameplay]\nragdoll_physics=true\ncorpses_stay=true\n");
+    CHECK(loaded.ragdollPhysics);
+    CHECK(loaded.corpsesStay);
+    CHECK(contains(savedNames(loaded), "gameplay.ragdoll_physics"));
+    CHECK(contains(savedNames(loaded), "gameplay.corpses_stay"));
+}
+
+TEST_CASE("classic music loads from audio with an independent folder")
+{
+    CHECK_FALSE(GameSettings::createDefault().classicMusic);
+    CHECK(GameSettings::createDefault().classicMusicFolder.empty());
+    const GameSettings loaded = loadText(
+        "[profile]\nname=desktop\nversion=5\n[audio]\nclassic_music=true\nclassic_music_folder=E:\\Games\n");
+    CHECK(loaded.classicMusic);
+    CHECK_EQ(loaded.classicMusicFolder, R"(E:\Games)");
+    CHECK(contains(savedNames(loaded), "audio.classic_music"));
+    CHECK(contains(savedNames(loaded), "audio.classic_music_folder"));
 }

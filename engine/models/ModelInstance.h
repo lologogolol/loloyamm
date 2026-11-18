@@ -64,6 +64,17 @@ struct ModelNodeRotation
     bool operator==(const ModelNodeRotation &) const = default;
 };
 
+// An absolute world transform for one posed node. Overrides are applied root to tip after animation; nodes without an
+// override keep their authored local transform below their nearest overridden ancestor. Articulated physics uses this
+// to drive skin joints while sockets, rigid attachments and unskinned child pieces continue to follow the skeleton.
+struct ModelNodeWorldTransform
+{
+    uint32_t nodeIndex = 0;
+    ModelMatrix matrix = {};
+
+    bool operator==(const ModelNodeWorldTransform &) const = default;
+};
+
 // A burn consuming an instance's skinned surface (actors.yml death_effect: burn). Each material's burn map
 // (ModelMaterial::burnMapImageIndex) orders its texels from 0 to 1, and `front` sweeps that order. Texels within
 // charWidth ahead of the front char; behind it a glowing edge edgeWidth wide still stands, then the surface is gone
@@ -140,6 +151,7 @@ public:
     bool setNodeMarkersVisible(ModelInstanceHandle handle, bool visible);
     bool setAttachments(ModelInstanceHandle handle, std::vector<ModelAttachment> attachments);
     bool setNodeRotations(ModelInstanceHandle handle, std::vector<ModelNodeRotation> rotations);
+    bool setNodeWorldTransforms(ModelInstanceHandle handle, std::vector<ModelNodeWorldTransform> transforms);
     const std::vector<ModelAttachment> &attachments(ModelInstanceHandle handle) const;
     // A static stand-in replaces the instance's own skinned draws: renderers draw this unskinned asset (same material
     // variants) as a static placement at the instance's root transform. Used for corpses, whose pose is frozen
@@ -215,7 +227,9 @@ private:
         bool nodeMarkersVisible = false;
         std::vector<ModelAttachment> attachments;
         std::vector<ModelNodeRotation> nodeRotations;
+        std::vector<ModelNodeWorldTransform> nodeWorldTransforms;
         mutable std::vector<uint8_t> rotatedNodes;
+        mutable std::vector<int32_t> worldTransformIndices;
         std::shared_ptr<const ModelAsset> staticStandIn;
         float standInMinimumPixels = 0.0f;
         float coverage = 1.0f;

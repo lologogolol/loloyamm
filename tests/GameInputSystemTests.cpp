@@ -3,6 +3,8 @@
 #include "game/app/GameInputSystem.h"
 #include "game/ui/GameplayUiController.h"
 
+#include <limits>
+
 #if defined(__ANDROID__)
 #include "game/app/GameSession.h"
 #include "game/outdoor/OutdoorWorldRuntime.h"
@@ -22,6 +24,199 @@ SDL_Event mouseButtonEvent(SDL_EventType type, uint8_t button, float x, float y)
     event.button.y = y;
     return event;
 }
+
+class VirtualMenuGamepad
+{
+public:
+    VirtualMenuGamepad()
+    {
+        m_initializedHere = (SDL_WasInit(SDL_INIT_GAMEPAD) & SDL_INIT_GAMEPAD) == 0;
+        REQUIRE((!m_initializedHere || SDL_InitSubSystem(SDL_INIT_GAMEPAD)));
+        SDL_VirtualJoystickDesc description = {};
+        SDL_INIT_INTERFACE(&description);
+        description.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+        description.naxes = SDL_GAMEPAD_AXIS_COUNT;
+        description.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
+        description.axis_mask = (1u << SDL_GAMEPAD_AXIS_COUNT) - 1u;
+        description.button_mask = (1u << SDL_GAMEPAD_BUTTON_COUNT) - 1u;
+        description.name = "OpenYAMM menu navigation test gamepad";
+        m_id = SDL_AttachVirtualJoystick(&description);
+        REQUIRE_MESSAGE(m_id != 0, SDL_GetError());
+        SDL_PumpEvents();
+        REQUIRE_MESSAGE(SDL_IsGamepad(m_id), SDL_GetError());
+        m_pJoystick = SDL_OpenJoystick(m_id);
+        REQUIRE_MESSAGE(m_pJoystick != nullptr, SDL_GetError());
+        SDL_UpdateGamepads();
+    }
+
+    ~VirtualMenuGamepad()
+    {
+        SDL_CloseJoystick(m_pJoystick);
+        SDL_DetachVirtualJoystick(m_id);
+        if (m_initializedHere)
+        {
+            SDL_QuitSubSystem(SDL_INIT_GAMEPAD);
+        }
+    }
+
+    void axis(SDL_GamepadAxis axis, int16_t value)
+    {
+        REQUIRE(SDL_SetJoystickVirtualAxis(m_pJoystick, axis, value));
+        SDL_UpdateGamepads();
+        SDL_PumpEvents();
+    }
+
+    void button(SDL_GamepadButton button, bool held)
+    {
+        REQUIRE(SDL_SetJoystickVirtualButton(m_pJoystick, button, held));
+        SDL_UpdateGamepads();
+        SDL_PumpEvents();
+    }
+
+    SDL_Event addedEvent() const
+    {
+        SDL_Event event = {};
+        event.type = SDL_EVENT_GAMEPAD_ADDED;
+        event.gdevice.which = m_id;
+        return event;
+    }
+
+private:
+    bool m_initializedHere = false;
+    SDL_JoystickID m_id = 0;
+    SDL_Joystick *m_pJoystick = nullptr;
+};
+
+void updateMenuGamepad(GameInputSystem &input, const GameSettings &settings, float deltaSeconds = 1.0f / 60.0f)
+{
+    input.updateFromEngineInput(
+        640, 480, 0.0f, settings, false, true, true, false, true, false, {}, true, deltaSeconds);
+}
+
+void updateGameplayGamepad(GameInputSystem &input, const GameSettings &settings, float deltaSeconds = 1.0f / 60.0f)
+{
+    input.updateFromEngineInput(
+        640, 480, 0.0f, settings, false, true, true, false, true, false, {}, false, deltaSeconds);
+}
+}
+
+TEST_CASE("gamepad right stick drives the menu cursor and face buttons click")
+{
+    VirtualMenuGamepad gamepad;
+    GameInputSystem input;
+    const GameSettings settings = GameSettings::createDefault();
+    input.handleSdlEvent(gamepad.addedEvent());
+
+    updateMenuGamepad(input, settings);
+    const float initialX = input.frame().pointerX;
+    gamepad.axis(SDL_GAMEPAD_AXIS_RIGHTX, std::numeric_limits<int16_t>::max());
+    updateMenuGamepad(input, settings, 0.05f);
+    CHECK(input.frame().pointerX > initialX);
+    CHECK(input.frame().relativeMouseX == 0.0f);
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_SOUTH, true);
+    updateMenuGamepad(input, settings);
+    CHECK(input.frame().leftMouseButton.pressed);
+    CHECK(input.frame().leftMouseButton.held);
+    gamepad.button(SDL_GAMEPAD_BUTTON_SOUTH, false);
+    updateMenuGamepad(input, settings);
+    CHECK(input.frame().leftMouseButton.released);
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_WEST, true);
+    updateMenuGamepad(input, settings);
+    CHECK(input.frame().rightMouseButton.pressed);
+}
+
+TEST_CASE("gamepad dpad and left stick navigate menu focus and A accepts")
+{
+    VirtualMenuGamepad gamepad;
+    GameInputSystem input;
+    const GameSettings settings = GameSettings::createDefault();
+    input.handleSdlEvent(gamepad.addedEvent());
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_DPAD_DOWN, true);
+    updateMenuGamepad(input, settings);
+    CHECK_EQ(input.frame().scancodePressCount(SDL_SCANCODE_DOWN), 1);
+    CHECK(input.frame().isScancodeHeld(SDL_SCANCODE_DOWN));
+    gamepad.button(SDL_GAMEPAD_BUTTON_DPAD_DOWN, false);
+    updateMenuGamepad(input, settings);
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_SOUTH, true);
+    updateMenuGamepad(input, settings);
+    CHECK_EQ(input.frame().scancodePressCount(SDL_SCANCODE_RETURN), 1);
+    CHECK_FALSE(input.frame().leftMouseButton.held);
+    gamepad.button(SDL_GAMEPAD_BUTTON_SOUTH, false);
+    updateMenuGamepad(input, settings);
+
+    gamepad.axis(SDL_GAMEPAD_AXIS_LEFTX, std::numeric_limits<int16_t>::min());
+    updateMenuGamepad(input, settings);
+    CHECK_EQ(input.frame().scancodePressCount(SDL_SCANCODE_LEFT), 1);
+    updateMenuGamepad(input, settings, 0.1f);
+    updateMenuGamepad(input, settings, 0.1f);
+    updateMenuGamepad(input, settings, 0.1f);
+    updateMenuGamepad(input, settings, 0.1f);
+    CHECK_EQ(input.frame().scancodePressCount(SDL_SCANCODE_LEFT), 1);
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_EAST, true);
+    updateMenuGamepad(input, settings);
+    CHECK_EQ(input.frame().scancodePressCount(SDL_SCANCODE_ESCAPE), 1);
+}
+
+TEST_CASE("right stick click toggles gamepad look and interact cursor modes")
+{
+    VirtualMenuGamepad gamepad;
+    GameInputSystem input;
+    const GameSettings settings = GameSettings::createDefault();
+    input.handleSdlEvent(gamepad.addedEvent());
+
+    updateGameplayGamepad(input, settings);
+    CHECK_FALSE(input.frame().gamepadCursorModeActive);
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_RIGHT_STICK, true);
+    updateGameplayGamepad(input, settings);
+    CHECK(input.frame().gamepadCursorModeActive);
+    gamepad.button(SDL_GAMEPAD_BUTTON_RIGHT_STICK, false);
+    updateGameplayGamepad(input, settings);
+    CHECK(input.frame().gamepadCursorModeActive);
+
+    const float initialX = input.frame().pointerX;
+    gamepad.axis(SDL_GAMEPAD_AXIS_RIGHTX, std::numeric_limits<int16_t>::max());
+    updateGameplayGamepad(input, settings, 0.05f);
+    CHECK(input.frame().pointerX > initialX);
+    CHECK(input.frame().relativeMouseX == 0.0f);
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_SOUTH, true);
+    updateGameplayGamepad(input, settings);
+    CHECK(input.frame().leftMouseButton.held);
+    CHECK_FALSE(input.frame().action(KeyboardAction::Jump).held);
+    gamepad.button(SDL_GAMEPAD_BUTTON_SOUTH, false);
+    updateGameplayGamepad(input, settings);
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_RIGHT_STICK, true);
+    updateGameplayGamepad(input, settings);
+    CHECK_FALSE(input.frame().gamepadCursorModeActive);
+    CHECK(input.frame().relativeMouseX > 0.0f);
+}
+
+TEST_CASE("gamepad gameplay buttons and triggers follow remapped settings")
+{
+    VirtualMenuGamepad gamepad;
+    GameInputSystem input;
+    GameSettings settings = GameSettings::createDefault();
+    settings.gamepad.setBinding(
+        KeyboardAction::Attack, gamepadButtonInputBinding(SDL_GAMEPAD_BUTTON_NORTH));
+    settings.gamepad.setBinding(KeyboardAction::Jump, GamepadBinding{});
+    input.handleSdlEvent(gamepad.addedEvent());
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_SOUTH, true);
+    updateGameplayGamepad(input, settings);
+    CHECK_FALSE(input.frame().action(KeyboardAction::Jump).held);
+    CHECK_FALSE(input.frame().action(KeyboardAction::Attack).held);
+
+    gamepad.button(SDL_GAMEPAD_BUTTON_NORTH, true);
+    updateGameplayGamepad(input, settings);
+    CHECK(input.frame().action(KeyboardAction::Attack).pressed);
+    CHECK(input.frame().action(KeyboardAction::Attack).held);
 }
 
 TEST_CASE("game input preserves a quick trackpad tap and its mouse action")
@@ -45,6 +240,32 @@ TEST_CASE("game input preserves a quick trackpad tap and its mouse action")
     inputSystem.updateFromEngineInput(640, 480, 0.0f, settings);
     CHECK_FALSE(inputSystem.frame().leftMouseButton.pressed);
     CHECK_FALSE(inputSystem.frame().leftMouseButton.released);
+}
+
+TEST_CASE("auto-hold left click latches in gameplay and menus cancel it")
+{
+    GameInputSystem inputSystem;
+    GameSettings settings = {};
+    settings.autoHoldLeftClick = true;
+
+    inputSystem.handleSdlEvent(mouseButtonEvent(SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_BUTTON_LEFT, 100.0f, 200.0f));
+    inputSystem.handleSdlEvent(mouseButtonEvent(SDL_EVENT_MOUSE_BUTTON_UP, SDL_BUTTON_LEFT, 100.0f, 200.0f));
+    inputSystem.updateFromEngineInput(640, 480, 0.0f, settings);
+    CHECK(inputSystem.frame().leftMouseButton.pressed);
+    inputSystem.updateFromEngineInput(640, 480, 0.0f, settings);
+    CHECK(inputSystem.frame().leftMouseButton.held);
+
+    inputSystem.handleSdlEvent(mouseButtonEvent(SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_BUTTON_LEFT, 100.0f, 200.0f));
+    inputSystem.updateFromEngineInput(640, 480, 0.0f, settings);
+    CHECK(inputSystem.frame().leftMouseButton.released);
+
+    inputSystem.handleSdlEvent(mouseButtonEvent(SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_BUTTON_LEFT, 100.0f, 200.0f));
+    inputSystem.updateFromEngineInput(640, 480, 0.0f, settings);
+    REQUIRE(inputSystem.frame().leftMouseButton.held);
+    inputSystem.updateFromEngineInput(640, 480, 0.0f, settings, true);
+    CHECK_FALSE(inputSystem.frame().leftMouseButton.held);
+    inputSystem.updateFromEngineInput(640, 480, 0.0f, settings);
+    CHECK_FALSE(inputSystem.frame().leftMouseButton.held);
 }
 
 TEST_CASE("game input preserves drag start and release positions between frames")

@@ -17,6 +17,8 @@ namespace OpenYAMM::Game
 class GameInputSystem
 {
 public:
+    ~GameInputSystem();
+
     void handleSdlEvent(const SDL_Event &event);
 
     void updateFromEngineInput(
@@ -30,7 +32,9 @@ public:
         bool mobileFlightControlsEnabled = false,
         bool mobileInspectControlEnabled = true,
         bool mobileLongPressInspectEnabled = false,
-        std::span<const GameplayTouchControl> touchControls = {});
+        std::span<const GameplayTouchControl> touchControls = {},
+        bool menuNavigationEnabled = false,
+        float frameDeltaSeconds = 1.0f / 60.0f);
 
     const GameplayInputFrame &frame() const;
     GameplayInputFrame &frame();
@@ -47,6 +51,9 @@ public:
     static constexpr uint64_t ClickOpenedWindowNanoseconds = 500'000'000ULL;
 
 private:
+    void ensureGamepadOpen();
+    void closeGamepad();
+
     enum class MobileTouchRole
     {
         None,
@@ -122,5 +129,21 @@ private:
     // The last mouse button press (SDL ticks), and the end of the click guard (0 when none).
     uint64_t m_lastMouseButtonDownNanoseconds = 0;
     uint64_t m_clickGuardUntilNanoseconds = 0;
+    uint16_t m_pendingAutoHoldLeftClickPresses = 0;
+    bool m_autoHoldLeftClickLatched = false;
+    SDL_Gamepad *m_pGamepad = nullptr;
+    bool m_initialGamepadScanComplete = false;
+    bool m_gamepadInteractCursorMode = false;
+    bool m_gamepadMenuFocusMode = false;
+    bool m_gamepadCursorDriving = false;
+    bool m_gamepadCursorInitialized = false;
+    float m_gamepadCursorX = 0.0f;
+    float m_gamepadCursorY = 0.0f;
+    int m_gamepadCursorScreenWidth = 0;
+    int m_gamepadCursorScreenHeight = 0;
+    std::array<bool, 4> m_previousGamepadMenuDirections = {};
+    std::array<float, 4> m_gamepadMenuRepeatSeconds = {};
+    bool m_previousGamepadMenuAcceptHeld = false;
+    bool m_previousGamepadMenuBackHeld = false;
 };
 } // namespace OpenYAMM::Game

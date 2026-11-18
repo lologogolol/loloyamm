@@ -6,13 +6,13 @@ function(openyamm_patch_bgfx sourceDirectory patchName)
     set(patchFile "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/patches/${patchName}.patch")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${patchFile}")
     execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply --check "${patchFile}"
+        COMMAND "${GIT_EXECUTABLE}" apply --ignore-space-change --check "${patchFile}"
         WORKING_DIRECTORY "${sourceDirectory}"
         RESULT_VARIABLE patchCheck OUTPUT_QUIET ERROR_QUIET
     )
     if (patchCheck EQUAL 0)
         execute_process(
-            COMMAND "${GIT_EXECUTABLE}" apply "${patchFile}"
+            COMMAND "${GIT_EXECUTABLE}" apply --ignore-space-change "${patchFile}"
             WORKING_DIRECTORY "${sourceDirectory}"
             RESULT_VARIABLE patchResult ERROR_VARIABLE patchError
         )
@@ -21,7 +21,7 @@ function(openyamm_patch_bgfx sourceDirectory patchName)
         endif()
     else()
         execute_process(
-            COMMAND "${GIT_EXECUTABLE}" apply --reverse --check "${patchFile}"
+            COMMAND "${GIT_EXECUTABLE}" apply --ignore-space-change --reverse --check "${patchFile}"
             WORKING_DIRECTORY "${sourceDirectory}"
             RESULT_VARIABLE reverseCheck OUTPUT_QUIET ERROR_QUIET
         )

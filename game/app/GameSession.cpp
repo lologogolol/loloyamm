@@ -1027,6 +1027,7 @@ void GameSession::updateGameplay(
                     .pointerY = input.pointerY,
                     .leftButtonPressed = input.leftMouseButton.held,
                     .rightButtonPressed = input.rightMouseButton.held,
+                    .gamepadCursorModeActive = input.gamepadCursorModeActive,
                     .hasReadyMember = hasReadyMember,
                     .canBeginQuickCast = true,
                     .isUtilitySpellModalActive = isUtilitySpellModalActive,

@@ -441,7 +441,41 @@ elements:
     - id: SettingsAudioGroup1
       anchor: top_left
       offset_x: 0.0
-      offset_y: 146.6426
+      offset_y: 107.7173
+      width: 525.3333
+      height: 18.1333
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Classic music
+        font: fondamento
+        color: '#e0c990'
+        align_x: left
+        align_y: middle
+        scale: 0.4
+        pad_x: 0.0
+    - id: SettingsAudioGroup2
+      anchor: top_left
+      offset_x: 0.0
+      offset_y: 238.4682
+      width: 525.3333
+      height: 18.1333
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Volume
+        font: fondamento
+        color: '#e0c990'
+        align_x: left
+        align_y: middle
+        scale: 0.4
+        pad_x: 0.0
+    - id: SettingsAudioGroup3
+      anchor: top_left
+      offset_x: 0.0
+      offset_y: 307.2602
       width: 525.3333
       height: 18.1333
       z_index: 10
@@ -575,10 +609,109 @@ elements:
         align_y: middle
         scale: 0.67765
         pad_x: 0.0
+    - id: SettingsAudioClassicMusicLabel
+      anchor: top_left
+      offset_x: 1.6
+      offset_y: 133.3173
+      width: 435.7333
+      height: 14.0752
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Classic music
+        font: menu_arrus
+        color: '#eadfc6'
+        align_x: left
+        align_y: middle
+        scale: 0.74105
+        pad_x: 0.0
+    - id: SettingsAudioClassicMusicDescription
+      anchor: top_left
+      offset_x: 1.6
+      offset_y: 149.5258
+      width: 435.7333
+      height: 23.0336
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Use the numbered MP3 soundtrack installed with the purchased game for the active world. Restart required.
+        font: menu_lucida
+        color: '#aeb5a5'
+        align_x: left
+        align_y: middle
+        scale: 0.60235
+        pad_x: 0.0
+    - id: SettingsAudioClassicMusicControl
+      anchor: top_left
+      offset_x: 453.3333
+      offset_y: 136.8594
+      width: 70.4
+      height: 32.158
+      z_index: 10
+      visible: true
+      interactive: true
+      asset:
+        default: hud_x2/menus/omenu_toggle_off.png
+        selected: hud_x2/menus/omenu_toggle_on.png
+    - id: SettingsAudioClassicMusicFolderLabel
+      anchor: top_left
+      offset_x: 13.6
+      offset_y: 183.7594
+      width: 327.7333
+      height: 14.0752
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Purchased games folder
+        font: menu_arrus
+        color: '#eadfc6'
+        align_x: left
+        align_y: middle
+        scale: 0.74105
+        pad_x: 0.0
+    - id: SettingsAudioClassicMusicFolderDescription
+      anchor: top_left
+      offset_x: 13.6
+      offset_y: 199.9679
+      width: 327.7333
+      height: 23.0336
+      z_index: 10
+      visible: true
+      interactive: false
+      text:
+        value: Folder containing Might and Magic 6, Might and Magic 7 and Might and Magic 8.
+        font: menu_lucida
+        color: '#aeb5a5'
+        align_x: left
+        align_y: middle
+        scale: 0.60235
+        pad_x: 0.0
+    - id: SettingsAudioClassicMusicFolderControl
+      anchor: top_left
+      offset_x: 357.3333
+      offset_y: 191.6471
+      width: 166.4
+      height: 23.4667
+      z_index: 10
+      visible: true
+      interactive: true
+      asset:
+        default: hud_x2/menus/omenu_text_field.png
+      text:
+        value: '{classic_music_folder}'
+        font: menu_lucida
+        color: '#e9dcc0'
+        align_x: left
+        align_y: middle
+        scale: 0.71529
+        pad_x: 6.9333
     - id: SettingsAudioVoiceVolumeLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 103.4506
+      offset_y: 264.0682
       width: 382.9333
       height: 14.0752
       z_index: 10
@@ -595,7 +728,7 @@ elements:
     - id: SettingsAudioVoiceVolumeDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 119.6591
+      offset_y: 280.2767
       width: 382.9333
       height: 11.5168
       z_index: 10
@@ -612,7 +745,7 @@ elements:
     - id: SettingsAudioVoiceVolumeControl
       anchor: top_left
       offset_x: 400.5333
-      offset_y: 109.3133
+      offset_y: 269.9309
       width: 88.5333
       height: 16.0
       z_index: 10
@@ -621,7 +754,7 @@ elements:
     - id: SettingsAudioVoiceVolumeValue
       anchor: top_left
       offset_x: 497.0666
-      offset_y: 111.4466
+      offset_y: 272.0642
       width: 26.6667
       height: 11.7333
       z_index: 10
@@ -638,7 +771,7 @@ elements:
     - id: SettingsAudioWalksoundLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 172.2426
+      offset_y: 332.8602
       width: 435.7333
       height: 14.0752
       z_index: 10
@@ -655,7 +788,7 @@ elements:
     - id: SettingsAudioWalksoundDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 188.4511
+      offset_y: 349.0687
       width: 435.7333
       height: 11.5168
       z_index: 10
@@ -672,7 +805,7 @@ elements:
     - id: SettingsAudioWalksoundControl
       anchor: top_left
       offset_x: 453.3333
-      offset_y: 170.0263
+      offset_y: 330.6439
       width: 70.4
       height: 32.158
       z_index: 10
@@ -684,7 +817,7 @@ elements:
     - id: SettingsAudioRepeatedVoiceLinesLabel
       anchor: top_left
       offset_x: 1.6
-      offset_y: 211.1679
+      offset_y: 371.7855
       width: 216.7083
       height: 18.1333
       z_index: 10
@@ -701,7 +834,7 @@ elements:
     - id: SettingsAudioRepeatedVoiceLinesValue
       anchor: top_left
       offset_x: 1.6
-      offset_y: 211.1679
+      offset_y: 371.7855
       width: 522.1333
       height: 18.1333
       z_index: 10
@@ -718,7 +851,7 @@ elements:
     - id: SettingsAudioRepeatedVoiceLinesControl
       anchor: top_left
       offset_x: 5.6
-      offset_y: 231.6679
+      offset_y: 392.2855
       width: 514.1333
       height: 16.0
       z_index: 10
@@ -727,7 +860,7 @@ elements:
     - id: SettingsAudioRepeatedVoiceLinesDescription
       anchor: top_left
       offset_x: 1.6
-      offset_y: 251.1679
+      offset_y: 411.7855
       width: 522.1333
       height: 11.5168
       z_index: 10

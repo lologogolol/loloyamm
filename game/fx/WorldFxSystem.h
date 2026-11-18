@@ -6,6 +6,7 @@
 #include "game/fx/TalkPortraitFrame.h"
 #include "engine/models/GltfModelLoader.h"
 #include "engine/models/ModelInstance.h"
+#include "game/fx/ActorRagdoll.h"
 #include "game/fx/EffectSystem.h"
 #include "game/fx/ParticleRecipes.h"
 #include "game/fx/ParticleSystem.h"
@@ -166,6 +167,12 @@ public:
     // Animation LOD: actors far from the party sample their clips at 15 Hz (beyond ~14 m) and 8 Hz (beyond ~28 m).
     // Off by default (exact clip timing, e.g. for diagnostics); the game enables it with the model LOD setting.
     void setActorAnimationLod(bool enabled) { m_actorAnimationLod = enabled; }
+    // Optional visual rigid-body death simulation for 3D actors. This affects presentation only; the gameplay actor
+    // and its collision remain authoritative, and the separately spawned loot satchel stays anchored to the actor's
+    // original floor position.
+    void setRagdollPhysics(bool enabled) { m_ragdollPhysics = enabled; }
+    // Keeps fallen bodies visible. Loot satchels can still appear and remain independently pickable.
+    void setCorpsesStay(bool enabled) { m_corpsesStay = enabled; }
     // Loot satchels: a slain creature's body, model or sprite, sinks and dissolves once it has come to rest, and a
     // satchel sized by its loot value takes its place (none for an empty corpse). Hover, picking and sprite hiding
     // then go through the satchel, as through an actor model.
@@ -555,6 +562,14 @@ private:
         // Locomotion clip playing (actorModelGait, kept between frames for its hysteresis).
         ActorModelGait gait = ActorModelGait::Walk;
         float deathClipTime = -1.0f;
+        // A skinned model gets per-joint Verlet physics. Models without a usable skin retain the rigid fall below.
+        bool ragdollActive = false;
+        bool ragdollArticulationAttempted = false;
+        std::optional<ActorRagdoll> articulatedRagdoll;
+        float ragdollGroundZ = 0.0f;
+        float ragdollAngle = 0.0f;
+        float ragdollAngularVelocity = 0.0f;
+        float ragdollDirection = 0.0f;
         // Seconds since the burn death started (ActorBurnDeath), -1 when not burning; flames owed and spawned so far.
         float burnSeconds = -1.0f;
         float burnFlameBudget = 0.0f;
@@ -671,6 +686,8 @@ private:
     bool buildActorModelBinding(const std::string &descriptor, std::string &error);
     bool m_actorModelsConfigured = false;
     bool m_actorAnimationLod = false;
+    bool m_ragdollPhysics = false;
+    bool m_corpsesStay = false;
     std::shared_ptr<const ActorModelManifest> m_pActorModelManifest;
     const Engine::AssetFileSystem *m_pActorModelAssets = nullptr;
     const MonsterTable *m_pActorModelMonsters = nullptr;

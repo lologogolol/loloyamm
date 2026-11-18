@@ -72,6 +72,15 @@ struct InstalledContentOptions
     // the ones before it and behind the loose engine/ and worlds/ folders. The game chooses them at its start
     // (Game::mountNamedMods); they mount over a release's packs and over a development root alike. Empty: none.
     std::vector<std::string> namedMods;
+    // A prepared cache of the player's purchased MM6-MM8 visual LODs. The category flags select which parts of its
+    // active world override supplied content, while mods still mount in front of it. Empty keeps OpenYAMM visuals.
+    std::filesystem::path originalVisualsRoot;
+    bool classicEnvironmentGraphics = false;
+    bool classicActorGraphics = false;
+    // Folder containing the purchased MM6-MM8 installations. When enabled, the active world's original numbered MP3
+    // tracks mount over supplied music and below language packs and mods.
+    std::filesystem::path classicMusicGamesRoot;
+    bool classicMusic = false;
     // [updates] keep_modified_packs: a pack whose size differs from the index is mounted anyway.
     bool acceptModifiedPacks = false;
     // The interface language (devdocs/LOCALIZATION.md), on every asset root: the fonts/, audio/ and videos/ folders of

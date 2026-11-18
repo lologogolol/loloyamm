@@ -26,6 +26,7 @@ struct GameplayMouseLookPolicyConfig
 {
     bool mouseLookAllowed = false;
     bool rightMousePressed = false;
+    bool gamepadCursorModeActive = false;
 };
 
 struct GameplayMouseLookPolicyResult
@@ -65,6 +66,7 @@ struct GameplaySharedInputFrameConfig
     float pointerY = 0.0f;
     bool leftButtonPressed = false;
     bool rightButtonPressed = false;
+    bool gamepadCursorModeActive = false;
     bool hasReadyMember = false;
     bool canBeginQuickCast = false;
     bool isUtilitySpellModalActive = false;

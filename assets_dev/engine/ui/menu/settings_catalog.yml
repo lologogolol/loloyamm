@@ -56,6 +56,18 @@ settings:
   name: Fast attack repeat
   type: toggle
   desc: A held Attack or Quick Cast key repeats at once; off, a short tap acts for one character, as in the originals.
+- id: ragdoll_physics
+  section: gameplay
+  group: Physics
+  name: Ragdoll physics
+  type: toggle
+  desc: Slain 3D creatures detach from their animation rigs and fall with hit strength and damage-type impulses.
+- id: corpses_stay
+  section: gameplay
+  group: Physics
+  name: Corpses stay
+  type: toggle
+  desc: Keep settled bodies in the world. Loot bags remain separate anchored objects.
 - id: formations_everywhere
   section: gameplay
   group: Combat
@@ -343,6 +355,24 @@ settings:
   name: Distant creature detail
   type: toggle
   desc: Draw simpler creature shapes far away; nearby creatures keep full detail.
+- id: classic_environment_graphics
+  section: video
+  group: Classic graphics
+  name: Classic environments
+  type: toggle
+  desc: Use purchased MM6-MM8 world textures and object sprites. The interface stays updated; restart required.
+- id: classic_actor_graphics
+  section: video
+  group: Classic graphics
+  name: Classic actors
+  type: toggle
+  desc: Use purchased creature sprites instead of 3D actor models. Independent of environments; restart required.
+- id: purchased_games_folder
+  section: video
+  group: Classic graphics
+  name: Purchased games folder
+  type: path
+  desc: Folder containing Might and Magic 6, Might and Magic 7 and Might and Magic 8.
 - id: texture_filtering
   section: video
   group: Textures
@@ -598,6 +628,19 @@ settings:
   max: 9
   unit: / 9
   desc: Music in menus, towns and dungeons. Zero mutes.
+- id: classic_music
+  section: audio
+  group: Classic music
+  name: Classic music
+  type: toggle
+  desc: Use the numbered MP3 soundtrack installed with the purchased game for the active world. Restart required.
+- id: classic_music_folder
+  section: audio
+  group: Classic music
+  name: Purchased games folder
+  type: path
+  depends: classic_music
+  desc: Folder containing Might and Magic 6, Might and Magic 7 and Might and Magic 8.
 - id: voice_volume
   section: audio
   group: Volume
@@ -642,6 +685,13 @@ settings:
   name: Smart left click
   type: toggle
   desc: Left-click talks, opens, picks up or uses what is under the cursor, and attacks anywhere else.
+  desktop_only: true
+- id: auto_hold_left_click
+  section: controls
+  group: Mouse
+  name: Auto-hold left click
+  type: toggle
+  desc: One gameplay left-click holds the action until the next click. Opening a menu releases it.
   desktop_only: true
 - id: mouse_sensitivity
   section: controls
@@ -831,6 +881,22 @@ bindings:
 - id: cursor_mode
   name: Free cursor on/off (modern controls; the world keeps running)
   group: Camera
+- id: toggle_cursor_mode
+  name: Look / interact cursor mode
+  group: Gamepad
+  keyboard: false
+- id: menu_accept
+  name: Menu accept / cursor click
+  group: Gamepad
+  keyboard: false
+- id: menu_back
+  name: Menu back
+  group: Gamepad
+  keyboard: false
+- id: menu_secondary
+  name: Menu secondary / inspect
+  group: Gamepad
+  keyboard: false
 - id: attack
   name: Attack
   group: Combat

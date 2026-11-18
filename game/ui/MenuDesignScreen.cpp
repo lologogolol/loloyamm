@@ -116,12 +116,16 @@ void MenuDesignScreen::beginDesign(const std::string &screen)
     {
         m_keyboardFocus = false;
     }
-    if (!modalOpen() && keyPressed(SDL_SCANCODE_TAB) && !m_focusTargets.empty())
+    const bool focusNext = keyPressed(SDL_SCANCODE_TAB) || keyPressed(SDL_SCANCODE_DOWN);
+    const bool focusPrevious = keyPressed(SDL_SCANCODE_UP);
+    if (!modalOpen() && (focusNext || focusPrevious) && !m_focusTargets.empty())
     {
         m_keyboardFocus = true;
         const auto position = std::find(m_focusTargets.begin(), m_focusTargets.end(), m_focus);
         int index = position == m_focusTargets.end() ? -1 : int(position - m_focusTargets.begin());
-        const int step = isScancodeHeld(SDL_SCANCODE_LSHIFT) || isScancodeHeld(SDL_SCANCODE_RSHIFT) ? -1 : 1;
+        const int step = focusPrevious
+            || (keyPressed(SDL_SCANCODE_TAB)
+                && (isScancodeHeld(SDL_SCANCODE_LSHIFT) || isScancodeHeld(SDL_SCANCODE_RSHIFT))) ? -1 : 1;
         index = (index + step + int(m_focusTargets.size())) % int(m_focusTargets.size());
         m_focus = m_focusTargets[index];
         const auto rect = m_focusRects.find(m_focus);

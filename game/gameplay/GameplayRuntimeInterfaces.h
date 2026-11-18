@@ -187,6 +187,14 @@ struct GameplayRuntimeActorState
     float actionSeconds = 0.0f;
     float velocityX = 0.0f;
     float velocityY = 0.0f;
+    float velocityZ = 0.0f;
+    // Stable copy of the killing blow. The gameplay body's velocity can decay before presentation observes death;
+    // these runtime-only values launch a detached 3D ragdoll and are zero for corpses loaded from a save.
+    float deathImpulseX = 0.0f;
+    float deathImpulseY = 0.0f;
+    float deathImpulseZ = 0.0f;
+    int deathImpactDamage = 0;
+    CombatDamageType deathImpactDamageType = CombatDamageType::Physical;
     // Horizontal speed the AI asked for before collision (0 when not moving): what velocity would be without walls.
     float intendedSpeed = 0.0f;
     // Pursuing or fleeing (moving at twice the wander speed): a 3D model prefers its run clip.

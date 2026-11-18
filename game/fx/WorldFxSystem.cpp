@@ -57,6 +57,72 @@ constexpr float ShieldShellBreakSeconds = 0.75f;
 // Seconds a hit or the raise lifts a resting shell to its full strength, fading back to the rest strength.
 constexpr float ShieldShellFlareSeconds = 0.6f;
 
+ActorRagdollLaunch actorRagdollLaunch(
+    const GameplayRuntimeActorState &state,
+    const IGameplayWorldRuntime &world)
+{
+    ActorRagdollLaunch result;
+    const float damageRatio = state.maxHp > 0
+        ? std::clamp(float(state.deathImpactDamage) / float(state.maxHp), 0.0f, 2.0f) : 0.0f;
+    const float storedHorizontal = std::hypot(state.deathImpulseX, state.deathImpulseY);
+    const float damageStrength = state.deathImpactDamage > 0
+        ? 45.0f + 360.0f * std::sqrt(damageRatio) : 0.0f;
+    float horizontalStrength = std::max(storedHorizontal, damageStrength);
+    float directionX = state.deathImpulseX;
+    float directionY = state.deathImpulseY;
+    if (storedHorizontal > 0.01f)
+    {
+        directionX /= storedHorizontal;
+        directionY /= storedHorizontal;
+    }
+    else
+    {
+        directionX = state.preciseX - world.partyX();
+        directionY = state.preciseY - world.partyY();
+        const float distance = std::hypot(directionX, directionY);
+        if (distance > 0.01f)
+        {
+            directionX /= distance;
+            directionY /= distance;
+        }
+        else
+        {
+            directionX = std::cos(state.yawRadians);
+            directionY = std::sin(state.yawRadians);
+        }
+    }
+
+    float horizontalScale = 1.0f;
+    float lift = 20.0f;
+    result.twistVelocity = 18.0f;
+    switch (state.deathImpactDamageType)
+    {
+        case CombatDamageType::Fire: horizontalScale = 0.95f; lift = 145.0f; result.twistVelocity = 35.0f; break;
+        case CombatDamageType::Air: horizontalScale = 1.45f; lift = 190.0f; result.twistVelocity = 45.0f; break;
+        case CombatDamageType::Water: horizontalScale = 0.75f; lift = 55.0f; result.twistVelocity = 12.0f; break;
+        case CombatDamageType::Earth: horizontalScale = 0.65f; lift = 10.0f; result.twistVelocity = 8.0f; break;
+        case CombatDamageType::Spirit: horizontalScale = 1.10f; lift = 125.0f; result.twistVelocity = 60.0f; break;
+        case CombatDamageType::Mind: horizontalScale = 0.85f; lift = 85.0f; result.twistVelocity = 75.0f; break;
+        case CombatDamageType::Body: horizontalScale = 0.90f; lift = 50.0f; result.twistVelocity = 28.0f; break;
+        case CombatDamageType::Light: horizontalScale = 1.15f; lift = 210.0f; result.twistVelocity = 42.0f; break;
+        case CombatDamageType::Dark: horizontalScale = 0.90f; lift = 25.0f; result.twistVelocity = 52.0f; break;
+        case CombatDamageType::Energy: horizontalScale = 1.55f; lift = 150.0f; result.twistVelocity = 70.0f; break;
+        case CombatDamageType::Irresistible:
+            horizontalScale = 1.75f;
+            lift = 195.0f;
+            result.twistVelocity = 85.0f;
+            break;
+        case CombatDamageType::Physical:
+        default: break;
+    }
+    horizontalStrength *= horizontalScale;
+    result.velocity = {
+        directionX * horizontalStrength,
+        directionY * horizontalStrength,
+        std::max(0.0f, state.deathImpulseZ) + lift + damageStrength * 0.12f};
+    return result;
+}
+
 // The energy shield shell over an actor's model (GameplayActorShieldView), none while its shield is down and done
 // shattering. Hits keep their world points: footZ and the body height place the rise sweep.
 std::optional<Engine::ModelShieldShell> actorShieldShell(const GameplayActorShieldView &shield, float footZ,
@@ -2284,12 +2350,100 @@ void WorldFxSystem::syncActorModels(const IGameplayWorldRuntime &world, float wo
             }
         }
         const float sink = actorCorpseSinkDepth(index);
+        const bool ragdollState = dying || state.animationState == ActorAiAnimationState::Dead;
+        if (!m_ragdollPhysics || !ragdollState)
+        {
+            model.ragdollActive = false;
+            model.ragdollArticulationAttempted = false;
+            model.articulatedRagdoll.reset();
+            model.ragdollAngle = 0.0f;
+            model.ragdollAngularVelocity = 0.0f;
+            m_models.setNodeWorldTransforms(model.handle, {});
+        }
+        else
+        {
+            if (!model.ragdollActive)
+            {
+                model.ragdollActive = true;
+                model.ragdollDirection = model.yaw
+                    + ((model.actorId & 1u) ? 0.65f : -0.65f)
+                    + float((model.actorId >> 1u) % 5u) * 0.11f;
+                model.ragdollAngle = 0.0f;
+                model.ragdollAngularVelocity = 0.9f + float(model.actorId % 7u) * 0.08f;
+                model.ragdollGroundZ = state.preciseZ + binding.zOffset;
+                model.ragdollArticulationAttempted = false;
+                model.articulatedRagdoll.reset();
+                if (model.corpseStandIn)
+                {
+                    m_models.setStaticStandIn(model.handle, nullptr);
+                    model.corpseStandIn = false;
+                }
+            }
+            if (model.articulatedRagdoll)
+            {
+                model.articulatedRagdoll->update(deltaSeconds, model.ragdollGroundZ - sink);
+            }
+            else
+            {
+                // Models without a usable joint hierarchy retain the compact fixed-step rigid-body fall.
+                float remaining = std::clamp(deltaSeconds, 0.0f, 0.1f);
+                while (remaining > 0.0f)
+                {
+                    const float step = std::min(remaining, 1.0f / 120.0f);
+                    model.ragdollAngularVelocity += 8.5f * std::cos(model.ragdollAngle) * step;
+                    model.ragdollAngularVelocity *= std::exp(-0.65f * step);
+                    model.ragdollAngle += model.ragdollAngularVelocity * step;
+                    constexpr float GroundAngle = 1.48f;
+                    if (model.ragdollAngle >= GroundAngle)
+                    {
+                        model.ragdollAngle = GroundAngle;
+                        model.ragdollAngularVelocity = -model.ragdollAngularVelocity * 0.16f;
+                        if (std::abs(model.ragdollAngularVelocity) < 0.12f)
+                        {
+                            model.ragdollAngularVelocity = 0.0f;
+                        }
+                    }
+                    model.ragdollAngle = std::max(model.ragdollAngle, 0.0f);
+                    remaining -= step;
+                }
+            }
+        }
+
         m_models.setCoverage(model.handle, sink > 0.0f
             ? corpseSinkPresentation(m_corpseSatchelStates.at(index).restSeconds).coverage : 1.0f);
-        const Engine::ModelTransform transform = Engine::gltfModelPlacement(
-            {state.preciseX, state.preciseY, state.preciseZ + binding.zOffset - sink},
-            model.yaw + binding.yawOffset, scale);
-        if (!binding.lookNodes.empty())
+        Engine::ModelTransform transform;
+        const std::array<float, 3> position =
+            {state.preciseX, state.preciseY, state.preciseZ + binding.zOffset - sink};
+        if (model.ragdollActive && !model.articulatedRagdoll)
+        {
+            using Quaternion = std::array<float, 4>;
+            const auto axisAngle = [](float x, float y, float z, float angle)
+            {
+                const float half = 0.5f * angle;
+                return Quaternion{x * std::sin(half), y * std::sin(half), z * std::sin(half), std::cos(half)};
+            };
+            const auto multiply = [](const Quaternion &a, const Quaternion &b)
+            {
+                return Quaternion{a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+                    a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+                    a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+                    a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]};
+            };
+            const float yaw = model.yaw + binding.yawOffset;
+            const Quaternion yawRotation = axisAngle(0.0f, 0.0f, 1.0f, yaw);
+            const Quaternion fallRotation = axisAngle(-std::sin(model.ragdollDirection),
+                std::cos(model.ragdollDirection), 0.0f, model.ragdollAngle);
+            transform = Engine::gltfModelPlacement(position, multiply(fallRotation, yawRotation), scale);
+        }
+        else
+        {
+            transform = Engine::gltfModelPlacement(position, model.yaw + binding.yawOffset, scale);
+        }
+        if (model.articulatedRagdoll)
+        {
+            m_models.setNodeRotations(model.handle, {});
+        }
+        else if (!binding.lookNodes.empty())
         {
             updateActorLook(model, state, world, scale, partyDistance, deltaSeconds,
                 !dying && !scripted && state.animationState != ActorAiAnimationState::Dead, index == liveActorIndex);
@@ -2310,6 +2464,21 @@ void WorldFxSystem::syncActorModels(const IGameplayWorldRuntime &world, float wo
         }
         m_models.sampleBlended(model.handle, clip, time, transform, deltaSeconds, transitionSeconds,
             layer, (restart && !continuingFollow) || backwardsChanged, sampleStep);
+        if (model.ragdollActive && !model.ragdollArticulationAttempted)
+        {
+            model.ragdollArticulationAttempted = true;
+            ActorRagdoll ragdoll;
+            if (ragdoll.initialize(*binding.asset, m_models, model.handle, model.ragdollGroundZ - sink,
+                    model.actorId, actorRagdollLaunch(state, world)))
+            {
+                model.articulatedRagdoll = std::move(ragdoll);
+                m_models.setNodeRotations(model.handle, {});
+            }
+        }
+        if (model.articulatedRagdoll)
+        {
+            m_models.setNodeWorldTransforms(model.handle, model.articulatedRagdoll->nodeWorldTransforms());
+        }
         model.transform = transform;
         const std::optional<Engine::ModelBurn> burn = actorBurn(model);
         m_models.setBurn(model.handle, burn ? &*burn : nullptr);
@@ -2327,7 +2496,7 @@ void WorldFxSystem::syncActorModels(const IGameplayWorldRuntime &world, float wo
         const bool corpseStandIn = state.animationState == ActorAiAnimationState::Dead && model.deathClipTime < 0.0f
             && clip == deadClip && layer.weight == 0.0f && model.initialized
             && (time >= deadDuration || state.animationTimeTicks == model.previousTime)
-            && (!burn || Engine::modelBurnConsumed(*burn));
+            && (!burn || Engine::modelBurnConsumed(*burn)) && !model.articulatedRagdoll;
         if (corpseStandIn != model.corpseStandIn)
         {
             m_models.setStaticStandIn(model.handle, corpseStandIn && !binding.burn
@@ -2783,17 +2952,23 @@ void WorldFxSystem::syncCorpseSatchels(const IGameplayWorldRuntime &world, float
             if (state.animationState == ActorAiAnimationState::Dead && lootValue)
             {
                 corpse.restSeconds = CorpseRestSeconds + std::max(CorpseSinkSeconds, CorpseSatchelAppearSeconds);
-                corpse.gone = true;
+                corpse.gone = !m_corpsesStay;
             }
             found = m_corpseSatchelStates.emplace_hint(next, index, corpse);
         }
         CorpseSatchel &corpse = found->second;
+        if (m_corpsesStay)
+        {
+            corpse.gone = false;
+        }
         if (!corpse.gone)
         {
             // At rest: a model once its death clip has finished and its corpse pose is held, a sprite in its dead frame.
             // Without rolled loot (no corpse view), the body stays.
             const auto model = m_actorModels.find(index);
-            const bool atRest = model != m_actorModels.end() ? model->second.corpseStandIn
+            const bool atRest = model != m_actorModels.end()
+                ? model->second.corpseStandIn || (model->second.articulatedRagdoll
+                    && model->second.articulatedRagdoll->settled())
                 : state.animationState == ActorAiAnimationState::Dead;
             if (corpse.restSeconds < 0.0f && atRest && lootValue)
             {
@@ -2808,7 +2983,8 @@ void WorldFxSystem::syncCorpseSatchels(const IGameplayWorldRuntime &world, float
             {
                 corpse.restSeconds += deltaSeconds;
             }
-            corpse.gone = corpse.restSeconds >= 0.0f && corpseSinkPresentation(corpse.restSeconds).gone;
+            corpse.gone = !m_corpsesStay && corpse.restSeconds >= 0.0f
+                && corpseSinkPresentation(corpse.restSeconds).gone;
         }
         else
         {
@@ -2836,6 +3012,10 @@ void WorldFxSystem::syncCorpseSatchels(const IGameplayWorldRuntime &world, float
 
 float WorldFxSystem::actorCorpseSinkDepth(size_t actorIndex) const
 {
+    if (m_corpsesStay)
+    {
+        return 0.0f;
+    }
     const auto found = m_corpseSatchelStates.find(actorIndex);
     if (found == m_corpseSatchelStates.end() || found->second.restSeconds < 0.0f || found->second.gone)
     {
@@ -2846,6 +3026,10 @@ float WorldFxSystem::actorCorpseSinkDepth(size_t actorIndex) const
 
 const WorldFxSystem::CorpseSatchel *WorldFxSystem::goneCorpse(size_t actorIndex) const
 {
+    if (m_corpsesStay)
+    {
+        return nullptr;
+    }
     const auto found = m_corpseSatchelStates.find(actorIndex);
     return found != m_corpseSatchelStates.end() && found->second.gone ? &found->second : nullptr;
 }

@@ -166,6 +166,26 @@ std::string menuSettingValue(const GameSettings &settings, std::string_view id)
     {
         return settings.modelLods ? "true" : "false";
     }
+    if (id == "classic_environment_graphics")
+    {
+        return settings.classicEnvironmentGraphics ? "true" : "false";
+    }
+    if (id == "classic_actor_graphics")
+    {
+        return settings.classicActorGraphics ? "true" : "false";
+    }
+    if (id == "purchased_games_folder")
+    {
+        return settings.purchasedGamesFolder;
+    }
+    if (id == "ragdoll_physics")
+    {
+        return settings.ragdollPhysics ? "true" : "false";
+    }
+    if (id == "corpses_stay")
+    {
+        return settings.corpsesStay ? "true" : "false";
+    }
     if (id == "texture_filtering")
     {
         return settings.textureFiltering ? "true" : "false";
@@ -334,6 +354,14 @@ std::string menuSettingValue(const GameSettings &settings, std::string_view id)
     {
         return std::to_string(settings.voiceVolume);
     }
+    if (id == "classic_music")
+    {
+        return settings.classicMusic ? "true" : "false";
+    }
+    if (id == "classic_music_folder")
+    {
+        return settings.classicMusicFolder;
+    }
     if (id == "walksound")
     {
         return settings.walksound ? "true" : "false";
@@ -353,6 +381,10 @@ std::string menuSettingValue(const GameSettings &settings, std::string_view id)
     if (id == "smart_click")
     {
         return settings.smartClick ? "true" : "false";
+    }
+    if (id == "auto_hold_left_click")
+    {
+        return settings.autoHoldLeftClick ? "true" : "false";
     }
     if (id == "always_run")
     {
@@ -646,6 +678,51 @@ bool setMenuSettingValue(GameSettings &settings, std::string_view id, const std:
             return false;
         }
         settings.modelLods = value == "true";
+        return true;
+    }
+    if (id == "classic_environment_graphics")
+    {
+        if (value != "true" && value != "false")
+        {
+            return false;
+        }
+        settings.classicEnvironmentGraphics = value == "true";
+        return true;
+    }
+    if (id == "classic_actor_graphics")
+    {
+        if (value != "true" && value != "false")
+        {
+            return false;
+        }
+        settings.classicActorGraphics = value == "true";
+        return true;
+    }
+    if (id == "purchased_games_folder")
+    {
+        if (value.empty() || value.size() >= 4096 || value.find_first_of("\r\n") != std::string::npos)
+        {
+            return false;
+        }
+        settings.purchasedGamesFolder = value;
+        return true;
+    }
+    if (id == "ragdoll_physics")
+    {
+        if (value != "true" && value != "false")
+        {
+            return false;
+        }
+        settings.ragdollPhysics = value == "true";
+        return true;
+    }
+    if (id == "corpses_stay")
+    {
+        if (value != "true" && value != "false")
+        {
+            return false;
+        }
+        settings.corpsesStay = value == "true";
         return true;
     }
     if (id == "texture_filtering")
@@ -996,6 +1073,24 @@ bool setMenuSettingValue(GameSettings &settings, std::string_view id, const std:
         settings.voiceVolume = number;
         return true;
     }
+    if (id == "classic_music")
+    {
+        if (value != "true" && value != "false")
+        {
+            return false;
+        }
+        settings.classicMusic = value == "true";
+        return true;
+    }
+    if (id == "classic_music_folder")
+    {
+        if (value.empty() || value.size() >= 4096 || value.find_first_of("\r\n") != std::string::npos)
+        {
+            return false;
+        }
+        settings.classicMusicFolder = value;
+        return true;
+    }
     if (id == "walksound")
     {
         if (value != "true" && value != "false")
@@ -1036,6 +1131,15 @@ bool setMenuSettingValue(GameSettings &settings, std::string_view id, const std:
             return false;
         }
         settings.smartClick = value == "true";
+        return true;
+    }
+    if (id == "auto_hold_left_click")
+    {
+        if (value != "true" && value != "false")
+        {
+            return false;
+        }
+        settings.autoHoldLeftClick = value == "true";
         return true;
     }
     if (id == "always_run")
@@ -1189,6 +1293,11 @@ bool sameMenuBinding(const InputBinding &left, const InputBinding &right)
            (left.kind == InputBindingKind::Keyboard      ? left.scancode == right.scancode
             : left.kind == InputBindingKind::MouseButton ? left.mouseButton == right.mouseButton
                                                          : true);
+}
+
+bool sameMenuGamepadBinding(const GamepadBinding &left, const GamepadBinding &right)
+{
+    return left == right;
 }
 
 bool reservedMenuBinding(const InputBinding &binding, KeyboardAction action)

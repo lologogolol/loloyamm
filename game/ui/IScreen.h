@@ -21,6 +21,10 @@ public:
     {
         return false;
     }
+    virtual bool capturesGamepadInput() const
+    {
+        return false;
+    }
     virtual void renderFrame(
         int width,
         int height,

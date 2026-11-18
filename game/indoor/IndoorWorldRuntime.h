@@ -121,6 +121,12 @@ public:
         float velocityX = 0.0f;
         float velocityY = 0.0f;
         float velocityZ = 0.0f;
+        // Runtime-only presentation copy of the killing blow; the gameplay corpse can keep resolving separately.
+        float deathImpulseX = 0.0f;
+        float deathImpulseY = 0.0f;
+        float deathImpulseZ = 0.0f;
+        int deathImpactDamage = 0;
+        CombatDamageType deathImpactDamageType = CombatDamageType::Physical;
         // Horizontal speed the AI's movement asked for before collision; 0 when it did not try to move.
         float intendedSpeed = 0.0f;
         int16_t sectorId = -1;

@@ -141,6 +141,12 @@ enum class KeyboardAction : uint8_t
     ActionBar8,
     ActionBar9,
     ActionBar10,
+    // Controller-only actions. They share the binding catalogue so gamepad assignments can be edited beside the
+    // keyboard bindings without creating a second action registry.
+    ToggleCursorMode,
+    MenuAccept,
+    MenuBack,
+    MenuSecondary,
     Count
 };
 
@@ -165,6 +171,22 @@ struct InputBinding
     uint8_t mouseButton = 0;
 };
 
+enum class GamepadBindingKind : uint8_t
+{
+    None = 0,
+    Button,
+    Trigger
+};
+
+struct GamepadBinding
+{
+    GamepadBindingKind kind = GamepadBindingKind::None;
+    SDL_GamepadButton button = SDL_GAMEPAD_BUTTON_INVALID;
+    SDL_GamepadAxis axis = SDL_GAMEPAD_AXIS_INVALID;
+
+    bool operator==(const GamepadBinding &other) const = default;
+};
+
 struct KeyboardBindingDefinition
 {
     KeyboardAction action = KeyboardAction::Forward;
@@ -186,6 +208,12 @@ InputBinding mouseButtonInputBinding(uint8_t button);
 bool mouseButtonHeldInFlags(SDL_MouseButtonFlags flags, uint8_t button);
 InputBinding mouseWheelInputBinding(float delta);
 std::array<InputBinding, KeyboardActionCount> createDefaultKeyboardBindings();
+GamepadBinding gamepadButtonInputBinding(SDL_GamepadButton button);
+GamepadBinding gamepadTriggerInputBinding(SDL_GamepadAxis axis);
+std::array<GamepadBinding, KeyboardActionCount> createDefaultGamepadBindings();
+GamepadBinding parseGamepadBindingName(const std::string &name);
+std::string gamepadBindingName(const GamepadBinding &binding);
+std::string gamepadBindingDisplayName(const GamepadBinding &binding);
 SDL_Scancode parseKeyboardBindingName(const std::string &name);
 InputBinding parseInputBindingName(const std::string &name);
 std::string keyboardBindingName(SDL_Scancode scancode);

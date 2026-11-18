@@ -126,6 +126,9 @@ public:
     std::optional<int32_t> attackImpactTicks(uint16_t spriteId) const;
     // Delay of the attack sound after the attack starts; 0 plays it as the attack starts.
     float attackSoundDelaySeconds(uint16_t spriteId) const;
+    // Replaces enhanced atlas references with the native sprite texture names encoded by their frame binding. The
+    // choice also applies to YAML families appended later (for example a monster summoned after the map load).
+    void useOriginalTextureNames();
     static ResolvedSpriteTexture resolveTexture(const SpriteFrameEntry &frame, int octant);
     static bool hasFlag(uint32_t flags, SpriteFrameFlag flag);
 
@@ -139,6 +142,7 @@ private:
     std::vector<bool> m_framePresent;
     std::vector<uint16_t> m_eFrames;
     std::unordered_map<std::string, uint16_t> m_spriteNameIndex;
+    bool m_useOriginalTextureNames = false;
     struct AttackTiming
     {
         uint32_t contactFrame = 0;

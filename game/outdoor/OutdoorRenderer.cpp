@@ -3285,6 +3285,7 @@ bool OutdoorRenderer::ensureTerrainMaterials(OutdoorGameView &view)
 void OutdoorRenderer::ensureDecorationModels(OutdoorGameView &view)
 {
     if (view.m_decorationModelsInitializationAttempted || !view.m_outdoorDecorationBillboardSet
+        || view.m_outdoorDecorationBillboardSet->modelSpriteIds.empty()
         || view.m_pAssetFileSystem == nullptr || view.m_pOutdoorMapData == nullptr)
     {
         return;
